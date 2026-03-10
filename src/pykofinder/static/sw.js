@@ -8,7 +8,7 @@
  *   - Everything else → network-first with shell fallback.
  */
 
-const CACHE = "pykofinder-v1";
+const CACHE = "pykofinder-v2";
 
 const PRECACHE = [
   "/f/",
@@ -20,6 +20,7 @@ const PRECACHE = [
 
 /* Paths whose responses must never be served from cache. */
 const NETWORK_ONLY_PREFIXES = [
+  "/f/",
   "/click",
   "/restore",
   "/raw",
