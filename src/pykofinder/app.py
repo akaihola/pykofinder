@@ -1,6 +1,5 @@
 import configparser
 import html as html_lib
-import json
 import os
 from pathlib import Path
 from textwrap import dedent
@@ -108,8 +107,12 @@ def _resolve_safe(path_str: str, root: Path | None = None) -> Path | None:
         return None
 
 
-def _shell_html(*extra_head_scripts):
-    """Return the full app-shell HTML page."""
+def _shell_html(*extra_head_scripts, body_content=None):
+    """Return the full app-shell HTML page.
+
+    *body_content* replaces the default ``initial_columns(ROOT)`` body.
+    Pass ``NotStr(html_string)`` to embed pre-rendered HTML directly.
+    """
     extra_scripts = [Script(LIVE_RELOAD_JS)] if LIVE_MODE else []
     return Html(
         Head(
@@ -133,7 +136,7 @@ def _shell_html(*extra_head_scripts):
             *extra_scripts,
             *extra_head_scripts,
         ),
-        Body(initial_columns(ROOT)),
+        Body(body_content if body_content is not None else initial_columns(ROOT)),
     )
 
 
@@ -370,15 +373,13 @@ def _parse_desktop_url(path: Path) -> str | None:
     return None
 
 
-@rt("/restore")
-def restore(path: str, vpath: str = ""):
-    """Return a full app-shell HTML for the given path (deep-link restoration)."""
-    p = _resolve_safe(path)
-    if p is None:
-        # Fall back to root view
-        shell = initial_columns(ROOT)
-        return HTMLResponse(repr(shell))
+def _build_app_shell_html(p: Path, vpath: str = "") -> str:
+    """Build and return the ``<div id="app-shell">`` HTML for a resolved path.
 
+    Shared by the ``/restore`` HTMX endpoint and by ``finder_view`` for
+    server-side rendering of direct deep-link URLs.  Caller is responsible
+    for verifying that *p* is a valid, safe path.
+    """
     # Build ancestor chain: ROOT plus each directory step down to p
     try:
         rel = p.relative_to(ROOT)
@@ -469,11 +470,20 @@ def restore(path: str, vpath: str = ""):
     preview_div = f'<div id="preview" class="{preview_cls}">{preview_html}</div>'
     bc_html = render_breadcrumb(p, ROOT)
 
-    full = (
+    return (
         f'<div id="app-shell">{bc_html}'
         f'<div id="finder">{cols_html}{sentinel_html}{preview_div}</div></div>'
     )
-    return HTMLResponse(full)
+
+
+@rt("/restore")
+def restore(path: str, vpath: str = ""):
+    """Return a full app-shell HTML fragment for the given path (HTMX deep-link restore)."""
+    p = _resolve_safe(path)
+    if p is None:
+        shell = initial_columns(ROOT)
+        return HTMLResponse(repr(shell))
+    return HTMLResponse(_build_app_shell_html(p, vpath))
 
 
 @rt("/open-link")
@@ -611,11 +621,8 @@ def finder_root(path: str = "", vpath: str = ""):
         canonical = _finder_url(p, vpath)
         if canonical is not None:
             return RedirectResponse(canonical, status_code=302)
-        nav_js = (
-            f"document.addEventListener('DOMContentLoaded',"
-            f"function(){{_deepNavigate({json.dumps(str(p))}, {json.dumps(vpath or None)})}});"
-        )
-        return _shell_html(Script(nav_js))
+        # Can't determine a canonical URL; server-side render directly. (#43)
+        return _shell_html(body_content=NotStr(_build_app_shell_html(p, vpath)))
     return _shell_html()
 
 
@@ -624,7 +631,10 @@ def finder_view(path: str = "", vpath: str = ""):
     """Serve the finder shell at an optional canonical mount-relative path.
 
     ``/f/`` renders the root view.
-    ``/f/<mount>/<relative>`` renders the shell and deep-links to that file.
+    ``/f/<mount>/<relative>`` renders the full navigation state server-side,
+    so no client-side DOM surgery (_deepNavigate) is needed on the initial
+    load.  This avoids Firefox for Android rendering bugs with innerHTML /
+    outerHTML replacement.  (#43)
     """
     if not path:
         return _shell_html()
@@ -639,11 +649,7 @@ def finder_view(path: str = "", vpath: str = ""):
     if p is None or not p.exists():
         return HTMLResponse("Not found", status_code=404)
 
-    nav_js = (
-        f"document.addEventListener('DOMContentLoaded',"
-        f"function(){{_deepNavigate({json.dumps(str(p))}, {json.dumps(vpath or None)})}});"
-    )
-    return _shell_html(Script(nav_js))
+    return _shell_html(body_content=NotStr(_build_app_shell_html(p, vpath)))
 
 
 # ── PWA static files ─────────────────────────────────────────────────────────

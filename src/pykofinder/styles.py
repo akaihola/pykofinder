@@ -653,7 +653,14 @@ document.addEventListener('DOMContentLoaded', function() {
     recalcColumnWidth();
     initZoomButton();
     initDotfilesToggle();
-    // Deep-link: restore state from URL
+    // Scroll finder to the rightmost column.  For server-side rendered deep
+    // links all columns are already in the DOM, so scrolling right on load
+    // reveals the deepest column and the preview.  For the root view there is
+    // only one column so this is a no-op.  (#43)
+    var finder = document.getElementById('finder');
+    if (finder) finder.scrollLeft = finder.scrollWidth;
+    _kbApplyFocus();
+    // Legacy: restore state from ?path= search params (fallback only).
     var params = new URLSearchParams(window.location.search);
     var deepPath = params.get('path');
     var deepVpath = params.get('vpath') || null;
