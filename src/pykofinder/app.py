@@ -182,6 +182,11 @@ def _shell_html(*extra_head_scripts, body_content=None):
     return Html(
         Head(
             Title("pykofinder"),
+            Meta(charset="utf-8"),
+            Meta(
+                http_equiv="Cache-Control",
+                content="no-store",
+            ),
             Meta(name="viewport", content="width=device-width, initial-scale=1"),
             Meta(name="theme-color", content="#0770C9"),
             Meta(name="mobile-web-app-capable", content="yes"),
