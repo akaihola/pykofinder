@@ -675,7 +675,7 @@ document.addEventListener('DOMContentLoaded', function() {
 window.addEventListener('load', function() {
     setTimeout(function() {
         document.body.appendChild(document.createElement('div'));
-    }, 0);
+    }, 500);
 });
 
 // Selection highlighting – mark the clicked <li> as selected within its column
