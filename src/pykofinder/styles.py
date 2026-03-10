@@ -457,9 +457,12 @@ body.zoomed #preview {
 )
 
 COLUMN_JS = """
-// exp #43: does replaceState to add ?_=1 fix the Firefox Android rendering bug?
+// exp #43: force a fresh load with ?_=1 on first visit to a clean /f/ URL;
+// on the reload clean up the param from the address bar.
 if (location.pathname.startsWith('/f/') && !location.search) {
-    history.replaceState(null, '', location.href + '?_=1');
+    location.replace(location.href + '?_=1');
+} else if (location.search === '?_=1') {
+    history.replaceState(null, '', location.pathname);
 }
 
 function _syncZoomBtn() {
