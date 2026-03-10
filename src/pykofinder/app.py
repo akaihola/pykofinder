@@ -189,6 +189,10 @@ def _shell_html(*extra_head_scripts, body_content=None):
             Link(rel="manifest", href="/manifest.json"),
             Link(rel="apple-touch-icon", href="/icons/icon-192.png"),
             Style(APP_CSS),
+            Meta(
+                name="htmx-config",
+                content='{"historyCacheSize":0,"historyEnabled":false}',
+            ),
             Script(src="https://unpkg.com/htmx.org@1.9.12"),
             Script(src=_MERMAID_CDN),
             Script(COLUMN_JS),
