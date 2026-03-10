@@ -193,7 +193,7 @@ def _shell_html(*extra_head_scripts, body_content=None):
                 name="htmx-config",
                 content='{"historyCacheSize":0,"historyEnabled":false}',
             ),
-            Script(src="https://unpkg.com/htmx.org@1.9.12"),
+            # Script(src="https://unpkg.com/htmx.org@1.9.12"),  # exp #43
             Script(src=_MERMAID_CDN),
             Script(COLUMN_JS),
             Script(_SW_REGISTER_JS),
