@@ -200,7 +200,10 @@ def _shell_html(*extra_head_scripts, body_content=None):
             *extra_scripts,
             *extra_head_scripts,
         ),
-        Body(body_content if body_content is not None else initial_columns(ROOT)),
+        Body(
+            body_content if body_content is not None else initial_columns(ROOT),
+            **{"hx-disable": "true"},
+        ),
     )
 
 
