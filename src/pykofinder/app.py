@@ -41,6 +41,11 @@ _STATIC_DIR: Path = Path(__file__).parent / "static"
 # Inline JS injected into every page to register the service worker
 _SW_REGISTER_JS: str = dedent("""\
     if ('serviceWorker' in navigator) {
+        if ('caches' in window) {
+            caches.has('pykofinder-v1').then(function(has) {
+                if (has) { caches.delete('pykofinder-v1'); location.reload(); }
+            });
+        }
         navigator.serviceWorker.register('/sw.js', {scope: '/'});
     }
 """)
@@ -789,7 +794,7 @@ def finder_view(path: str = "", vpath: str = "", debug: str = ""):
     if p is None or not p.exists():
         return HTMLResponse("Not found", status_code=404)
 
-    extra = [Script(_DEBUG_OVERLAY_JS)]
+    extra = [Script(_DEBUG_OVERLAY_JS)] if debug else []
     return _shell_html(*extra, body_content=NotStr(_build_app_shell_html(p, vpath)))
 
 
