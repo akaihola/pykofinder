@@ -48,6 +48,66 @@ _SW_REGISTER_JS: str = dedent("""\
 # HTML file extensions that get a "View as web page" button in the preview
 _HTML_EXTS = {".html", ".htm"}
 
+# Injected by ?debug=1 – dumps CSS/DOM state as a copyable overlay (#43)
+_DEBUG_OVERLAY_JS = """
+document.addEventListener('DOMContentLoaded', function() {
+    var lines = [];
+    function add(k, v) { lines.push(k + ': ' + v); }
+
+    add('userAgent', navigator.userAgent);
+    add('compatMode', document.compatMode);
+    add('contentType', document.contentType);
+    add('characterSet', document.characterSet);
+
+    add('styleSheets.length', document.styleSheets.length);
+    for (var i = 0; i < document.styleSheets.length; i++) {
+        var ss = document.styleSheets[i];
+        var rules = 0;
+        try { rules = ss.cssRules ? ss.cssRules.length : 0; } catch(e) { rules = 'blocked(' + e.name + ')'; }
+        add('styleSheet[' + i + ']', (ss.href || 'inline') + ' rules=' + rules);
+    }
+
+    var ids = ['app-shell', 'finder', 'breadcrumb'];
+    ids.forEach(function(id) {
+        var el = document.getElementById(id);
+        if (!el) { add(id, 'NOT FOUND'); return; }
+        var cs = getComputedStyle(el);
+        add(id + '.display', cs.display);
+        add(id + '.background', cs.backgroundColor);
+    });
+
+    var bcs = getComputedStyle(document.body);
+    add('body.background', bcs.backgroundColor);
+    add('body.overflow', bcs.overflow);
+
+    var col = document.querySelector('.column');
+    if (col) {
+        var ccs = getComputedStyle(col);
+        add('column.display', ccs.display);
+        add('column.width', ccs.width);
+    } else {
+        add('column', 'NOT FOUND');
+    }
+
+    var scripts = document.body.querySelectorAll('script');
+    add('body script count', scripts.length);
+    if (scripts.length > 0) {
+        var scs = getComputedStyle(scripts[0]);
+        add('body script[0].display', scs.display);
+    }
+
+    var pre = document.createElement('pre');
+    pre.textContent = lines.join('\\n');
+    Object.assign(pre.style, {
+        position:'fixed', top:'0', left:'0', right:'0', zIndex:'99999',
+        background:'#fff', color:'#000', font:'12px/1.4 monospace',
+        padding:'8px', maxHeight:'60vh', overflowY:'auto',
+        border:'2px solid red', whiteSpace:'pre-wrap', userSelect:'text'
+    });
+    document.body.appendChild(pre);
+});
+"""
+
 # Overridden by cli.py before serve() is called; also supports env var for reload mode
 ROOT: Path = Path(os.environ.get("PYKOFINDER_ROOT", str(Path.home())))
 
@@ -705,7 +765,7 @@ def finder_root(path: str = "", vpath: str = ""):
 
 
 @rt("/f/{path:path}")
-def finder_view(path: str = "", vpath: str = ""):
+def finder_view(path: str = "", vpath: str = "", debug: str = ""):
     """Serve the finder shell at an optional canonical mount-relative path.
 
     ``/f/`` renders the root view.
@@ -713,6 +773,8 @@ def finder_view(path: str = "", vpath: str = ""):
     so no client-side DOM surgery (_deepNavigate) is needed on the initial
     load.  This avoids Firefox for Android rendering bugs with innerHTML /
     outerHTML replacement.  (#43)
+
+    Append ``?debug=1`` to inject a diagnostic overlay into the rendered page.
     """
     if not path:
         return _shell_html()
@@ -727,7 +789,8 @@ def finder_view(path: str = "", vpath: str = ""):
     if p is None or not p.exists():
         return HTMLResponse("Not found", status_code=404)
 
-    return _shell_html(body_content=NotStr(_build_app_shell_html(p, vpath)))
+    extra = [Script(_DEBUG_OVERLAY_JS)] if debug else []
+    return _shell_html(*extra, body_content=NotStr(_build_app_shell_html(p, vpath)))
 
 
 # ── PWA static files ─────────────────────────────────────────────────────────

@@ -1,0 +1,5 @@
+pykofinder debug
+
+Copy everything below and paste it in the chat.
+
+userAgent: Mozilla/5.0 (Android 15; Mobile; rv:148.0) Gecko/148.0 Firefox/148.0 compatMode: CSS1Compat contentType: text/html characterSet: UTF-8 URL: https://gogo.crane-boa.ts.net:8445/debug styleSheets.length: 1 styleSheet[0]: inline rules=3 app-shell: NOT FOUND finder: NOT FOUND breadcrumb: NOT FOUND body.background: rgb(255, 255, 255) body.overflow: visible column: NOT FOUND body script count: 1 body script[0].display: none body script[0].visibility: visible
