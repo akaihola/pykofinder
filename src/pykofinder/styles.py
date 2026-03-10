@@ -650,6 +650,10 @@ function _deepNavigate(fullPath, vpath) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+    // Force a synchronous style flush.  Firefox for Android (release) paints
+    // before fully applying author CSS on server-side-rendered deep-link pages;
+    // reading a computed style forces recalculation and triggers a repaint. (#43)
+    void getComputedStyle(document.body).overflow;
     recalcColumnWidth();
     initZoomButton();
     initDotfilesToggle();
