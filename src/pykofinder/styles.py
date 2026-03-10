@@ -457,6 +457,12 @@ body.zoomed #preview {
 )
 
 COLUMN_JS = """
+// Prevent htmx from sending HX-Request: true on history-restore fetches.
+// Without this, combined with FastHTML's unconditional Vary: HX-Request header,
+// mobile browsers cache the full-page shell under the HX-Request-keyed variant
+// and later serve it as an unstyled fragment on direct loads. (#42)
+htmx.config.historyRestoreAsHxRequest = false;
+
 function _syncZoomBtn() {
     var btn = document.getElementById('zoom-btn');
     if (!btn) return;

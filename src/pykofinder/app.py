@@ -700,7 +700,28 @@ class _WebStaticCORSMiddleware(BaseHTTPMiddleware):
         return response
 
 
+class _StripVaryMiddleware(BaseHTTPMiddleware):
+    """Remove Vary: HX-Request from full-page /f/ responses.
+
+    FastHTML unconditionally adds ``Vary: HX-Request, HX-History-Restore-Request``
+    to every response.  For /f/ routes (which always return the full page shell,
+    never a fragment) this header is incorrect and harmful: combined with htmx's
+    default ``historyRestoreAsHxRequest=true``, mobile browsers cache the shell
+    under the HX-Request-keyed variant and later serve it as an unstyled fragment
+    on direct loads.  Stripping the Vary header here prevents that cache split.
+    See also: ``htmx.config.historyRestoreAsHxRequest = false`` in COLUMN_JS. (#42)
+    """
+
+    async def dispatch(self, request, call_next):
+        response = await call_next(request)
+        if request.url.path.startswith("/f/") or request.url.path == "/f":
+            if "vary" in response.headers:
+                del response.headers["vary"]
+        return response
+
+
 app.add_middleware(_WebStaticCORSMiddleware)
+app.add_middleware(_StripVaryMiddleware)
 
 
 # ── Route priority fix ────────────────────────────────────────────────────────
