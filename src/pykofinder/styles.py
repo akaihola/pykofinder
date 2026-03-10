@@ -673,7 +673,9 @@ document.addEventListener('DOMContentLoaded', function() {
 // server-side-rendered deep-link pages.  Firing after window load (after the
 // first paint) forces a repaint with styles correctly applied.  (#43)
 window.addEventListener('load', function() {
-    document.body.appendChild(document.createElement('div'));
+    setTimeout(function() {
+        document.body.appendChild(document.createElement('div'));
+    }, 0);
 });
 
 // Selection highlighting – mark the clicked <li> as selected within its column
