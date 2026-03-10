@@ -650,10 +650,16 @@ function _deepNavigate(fullPath, vpath) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    // Force a synchronous style flush.  Firefox for Android (release) paints
-    // before fully applying author CSS on server-side-rendered deep-link pages;
-    // reading a computed style forces recalculation and triggers a repaint. (#43)
-    void getComputedStyle(document.body).overflow;
+    // Workaround for a Firefox for Android (release) bug: the browser paints
+    // before author CSS is applied on server-side-rendered deep-link pages.
+    // Appending any element to <body> forces a compositing repaint that applies
+    // the stylesheet correctly.  The element is invisible and zero-sized. (#43)
+    (function() {
+        var el = document.createElement('div');
+        el.setAttribute('aria-hidden', 'true');
+        el.style.cssText = 'position:fixed;width:0;height:0;opacity:0;pointer-events:none';
+        document.body.appendChild(el);
+    }());
     recalcColumnWidth();
     initZoomButton();
     initDotfilesToggle();
