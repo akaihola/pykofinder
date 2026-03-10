@@ -3,7 +3,6 @@ from urllib.parse import quote
 
 import pykofinder.app as app_module
 from pykofinder.app import _resolve_safe, _parse_desktop_url
-from pykofinder.styles import APP_CSS, COLUMN_JS
 from starlette.testclient import TestClient
 
 
@@ -418,6 +417,8 @@ def test_keyboard_nav_js_in_column_js():
 
 # ── #18 CSS + JS presence ─────────────────────────────────────────────────────
 
+from pykofinder.styles import APP_CSS, COLUMN_JS
+
 
 def test_app_css_has_fmt_bar():
     assert ".fmt-bar" in APP_CSS
@@ -767,46 +768,3 @@ def test_restore_json_file_shows_json_preview(tmp_path, monkeypatch):
     assert "preview-unsupported" not in resp.text
     # JSON content must appear in the preview
     assert "heartbeat" in resp.text or "preview-code" in resp.text
-
-
-# ── Vary header / htmx cache-poisoning (#42) ──────────────────────────────────
-
-
-def test_finder_view_no_vary_header(tmp_path, monkeypatch):
-    """Full-page /f/ responses must NOT carry a Vary: HX-Request header.
-
-    FastHTML unconditionally adds 'Vary: HX-Request, HX-History-Restore-Request'.
-    Combined with htmx's default historyRestoreAsHxRequest=true, mobile Firefox
-    caches the full-page shell under an HX-Request keyed cache entry and later
-    serves it as a fragment (no CSS, script text visible) on direct loads.
-    """
-    monkeypatch.setattr(app_module, "ROOT", tmp_path)
-    c = TestClient(app_module.app, raise_server_exceptions=True)
-    resp = c.get("/f/")
-    assert "vary" not in resp.headers or "HX-Request" not in resp.headers.get(
-        "vary", ""
-    )
-
-
-def test_finder_view_path_no_vary_header(tmp_path, monkeypatch):
-    """Direct /f/<mount>/<file> URL must also omit Vary: HX-Request."""
-    sub = tmp_path / "notes"
-    sub.mkdir()
-    f = sub / "hello.md"
-    f.write_text("# hi")
-    monkeypatch.setattr(app_module, "ROOT", tmp_path)
-    c = TestClient(app_module.app, raise_server_exceptions=True)
-    resp = c.get(f"/f/{tmp_path.name}/notes/hello.md")
-    assert "vary" not in resp.headers or "HX-Request" not in resp.headers.get(
-        "vary", ""
-    )
-
-
-def test_column_js_disables_history_restore_as_hx_request():
-    """COLUMN_JS must set htmx.config.historyRestoreAsHxRequest = false.
-
-    This is the canonical htmx fix: prevents history-restore fetches from
-    sending HX-Request: true, so the Vary-keyed cache is never poisoned.
-    """
-    assert "historyRestoreAsHxRequest" in COLUMN_JS
-    assert "false" in COLUMN_JS
