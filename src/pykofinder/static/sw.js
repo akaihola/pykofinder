@@ -8,10 +8,9 @@
  *   - Everything else → network-first with shell fallback.
  */
 
-const CACHE = "pykofinder-v2";
+const CACHE = "pykofinder-v3";
 
 const PRECACHE = [
-  "/f/",
   "/manifest.json",
   "/icons/icon-192.png",
   "/icons/icon-512.png",

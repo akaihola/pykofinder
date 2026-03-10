@@ -457,14 +457,6 @@ body.zoomed #preview {
 )
 
 COLUMN_JS = """
-// exp #43: force a fresh load with ?_=1 on first visit to a clean /f/ URL;
-// on the reload clean up the param from the address bar.
-if (location.pathname.startsWith('/f/') && !location.search) {
-    location.replace(location.href + '?_=1');
-} else if (location.search === '?_=1') {
-    history.replaceState(null, '', location.pathname);
-}
-
 function _syncZoomBtn() {
     var btn = document.getElementById('zoom-btn');
     if (!btn) return;

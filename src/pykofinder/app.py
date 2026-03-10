@@ -183,10 +183,6 @@ def _shell_html(*extra_head_scripts, body_content=None):
         Head(
             Title("pykofinder"),
             Meta(charset="utf-8"),
-            Meta(
-                http_equiv="Cache-Control",
-                content="no-store",
-            ),
             Meta(name="viewport", content="width=device-width, initial-scale=1"),
             Meta(name="theme-color", content="#0770C9"),
             Meta(name="mobile-web-app-capable", content="yes"),
@@ -857,7 +853,26 @@ class _WebStaticCORSMiddleware(BaseHTTPMiddleware):
         return response
 
 
+class _NoCacheFinderMiddleware(BaseHTTPMiddleware):
+    """Prevent browser HTTP cache from storing /f/ page responses.
+
+    Without this header Firefox (and other browsers) apply heuristic caching
+    to HTML responses that have no Cache-Control header, so the *first* direct
+    load of a deep-link URL gets the stale cached version instead of a fresh
+    one.  The service worker already bypasses its own cache for /f/ paths
+    (NETWORK_ONLY_PREFIXES), but the browser's own HTTP cache sits below the
+    SW and is unaffected by that setting.
+    """
+
+    async def dispatch(self, request, call_next):
+        response = await call_next(request)
+        if request.url.path.startswith("/f/"):
+            response.headers["Cache-Control"] = "no-store"
+        return response
+
+
 app.add_middleware(_WebStaticCORSMiddleware)
+app.add_middleware(_NoCacheFinderMiddleware)
 
 
 # ── Route priority fix ────────────────────────────────────────────────────────
