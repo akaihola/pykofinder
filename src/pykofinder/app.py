@@ -796,7 +796,7 @@ def finder_view(path: str = "", vpath: str = "", debug: str = ""):
     if p is None or not p.exists():
         return HTMLResponse("Not found", status_code=404)
 
-    extra = [Script(_DEBUG_OVERLAY_JS)] if debug else []
+    extra = [Script(_DEBUG_OVERLAY_JS)]
     return _shell_html(*extra, body_content=NotStr(_build_app_shell_html(p, vpath)))
 
 
