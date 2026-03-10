@@ -625,23 +625,20 @@ function _deepNavigate(fullPath, vpath) {
         .then(function(html) {
             var shell = document.getElementById('app-shell');
             if (shell) {
-                // Use DOMParser + replaceWith instead of outerHTML setter.
-                // Firefox for Android (release) has a bug where the outerHTML
-                // setter loses the CSS cascade on the replaced subtree; the
-                // DOMParser path is unaffected.  (#43)
+                // Replace only the *content* of the existing shell element, keeping
+                // the element itself in the DOM at all times.  This avoids any
+                // browser bug where detaching and re-attaching the element (via
+                // outerHTML setter, replaceWith, or adoptNode) loses the CSS cascade.
+                // The /restore response wraps everything in <div id="app-shell">…</div>;
+                // strip that outer tag and assign only the inner HTML.  (#43)
                 var parsed = new DOMParser().parseFromString(html, 'text/html');
                 var newShell = parsed.getElementById('app-shell');
-                if (newShell) {
-                    shell.replaceWith(document.adoptNode(newShell));
-                } else {
-                    shell.outerHTML = html; // fallback
-                }
+                shell.innerHTML = newShell ? newShell.innerHTML : html;
                 // HTMX 1.9.x has no MutationObserver – programmatic DOM
                 // replacement is invisible to it.  Re-initialise explicitly so
                 // that hx-get / hx-target / hx-swap attributes on the freshly-
                 // injected columns are active and clicks are intercepted.
-                var adoptedShell = document.getElementById('app-shell');
-                if (adoptedShell) htmx.process(adoptedShell);
+                htmx.process(shell);
                 recalcColumnWidth();
                 initZoomButton();
                 _kbApplyFocus();
