@@ -37,6 +37,7 @@ _Items without an issue number are not yet tracked in ISSUES.md._
 
 ## Done
 
+- [x] #43 Mobile Firefox (release) unstyled page on direct URL – `outerHTML` setter loses CSS cascade; fixed with `DOMParser` + `replaceWith`
 - [x] #39 Canonical `/f/<mount>/<relative>` URLs + legacy `/f/?path=` fallback; align markdown links, browser history sync, VFS URLs, and `pykoclaw-pykofinder`
 - [x] #38 CORS on `/w/` – `Access-Control-Allow-Origin: *` + OPTIONS preflight
 - [x] #37 Browser regression now uses the real keyboard-only survival flow

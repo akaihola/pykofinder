@@ -625,13 +625,23 @@ function _deepNavigate(fullPath, vpath) {
         .then(function(html) {
             var shell = document.getElementById('app-shell');
             if (shell) {
-                shell.outerHTML = html;
-                // HTMX 1.9.x has no MutationObserver – programmatic outerHTML
+                // Use DOMParser + replaceWith instead of outerHTML setter.
+                // Firefox for Android (release) has a bug where the outerHTML
+                // setter loses the CSS cascade on the replaced subtree; the
+                // DOMParser path is unaffected.  (#43)
+                var parsed = new DOMParser().parseFromString(html, 'text/html');
+                var newShell = parsed.getElementById('app-shell');
+                if (newShell) {
+                    shell.replaceWith(document.adoptNode(newShell));
+                } else {
+                    shell.outerHTML = html; // fallback
+                }
+                // HTMX 1.9.x has no MutationObserver – programmatic DOM
                 // replacement is invisible to it.  Re-initialise explicitly so
                 // that hx-get / hx-target / hx-swap attributes on the freshly-
                 // injected columns are active and clicks are intercepted.
-                var newShell = document.getElementById('app-shell');
-                if (newShell) htmx.process(newShell);
+                var adoptedShell = document.getElementById('app-shell');
+                if (adoptedShell) htmx.process(adoptedShell);
                 recalcColumnWidth();
                 initZoomButton();
                 _kbApplyFocus();

@@ -3,6 +3,7 @@ from urllib.parse import quote
 
 import pykofinder.app as app_module
 from pykofinder.app import _resolve_safe, _parse_desktop_url
+from pykofinder.styles import APP_CSS, COLUMN_JS
 from starlette.testclient import TestClient
 
 
@@ -285,14 +286,13 @@ def test_url_sync_js_in_column_js():
 
 
 def test_deep_navigate_calls_htmx_process():
-    """_deepNavigate must call htmx.process() on the new shell after outerHTML swap.
+    """_deepNavigate must call htmx.process() on the new shell after DOM replacement.
 
-    HTMX 1.9.x has no MutationObserver – programmatic outerHTML replacement is
+    HTMX 1.9.x has no MutationObserver – programmatic DOM replacement is
     invisible to HTMX.  Without an explicit htmx.process() call the freshly-
     injected column links are never initialised and clicks do nothing.
     """
     import re
-    from pykofinder.styles import COLUMN_JS
 
     # Find the _deepNavigate function body
     match = re.search(
@@ -303,7 +303,41 @@ def test_deep_navigate_calls_htmx_process():
     assert match is not None, "_deepNavigate not found in COLUMN_JS"
     func_body = match.group(0)
     assert "htmx.process" in func_body, (
-        "_deepNavigate must call htmx.process() after outerHTML replacement"
+        "_deepNavigate must call htmx.process() after DOM replacement"
+    )
+
+
+def test_deep_navigate_uses_domparser_not_outerhtml():
+    """_deepNavigate must use DOMParser+replaceWith instead of outerHTML setter.
+
+    Firefox for Android (release) has a regression where setting
+    element.outerHTML = htmlString loses the CSS cascade on the replaced
+    subtree, leaving the page completely unstyled.  The DOMParser code path
+    is unaffected by this bug.  (#43)
+    """
+    import re
+
+    match = re.search(
+        r"function _deepNavigate\b.*?^\}",
+        COLUMN_JS,
+        re.DOTALL | re.MULTILINE,
+    )
+    assert match is not None, "_deepNavigate not found in COLUMN_JS"
+    func_body = match.group(0)
+    assert "DOMParser" in func_body, (
+        "_deepNavigate must use DOMParser to parse /restore HTML"
+    )
+    assert "replaceWith" in func_body, (
+        "_deepNavigate must use replaceWith() to swap the shell"
+    )
+    # The bare outerHTML setter must not be the primary path (only allowed as fallback)
+    primary_lines = [
+        ln
+        for ln in func_body.splitlines()
+        if "outerHTML" in ln and "fallback" not in ln and "//" not in ln.strip()[:2]
+    ]
+    assert not primary_lines, (
+        f"outerHTML setter found as primary path in _deepNavigate: {primary_lines}"
     )
 
 
@@ -416,8 +450,6 @@ def test_keyboard_nav_js_in_column_js():
 
 
 # ── #18 CSS + JS presence ─────────────────────────────────────────────────────
-
-from pykofinder.styles import APP_CSS, COLUMN_JS
 
 
 def test_app_css_has_fmt_bar():
