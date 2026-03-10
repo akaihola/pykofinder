@@ -146,6 +146,84 @@ def index():
     return RedirectResponse("/f/", status_code=302)
 
 
+@rt("/debug")
+def debug_page():
+    """Render a self-contained debug page: dumps browser/DOM info as copyable text."""
+    html = """<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>pykofinder debug</title>
+<style>
+body{background:#fff;color:#000;font:14px/1.5 monospace;padding:1rem;word-break:break-all}
+pre{background:#f4f4f4;padding:.5rem;white-space:pre-wrap}
+h2{font-size:1rem;margin-top:1.5rem}
+</style>
+</head><body>
+<h1>pykofinder debug</h1>
+<p>Copy everything below and paste it in the chat.</p>
+<pre id="out">collecting...</pre>
+<script>
+(function(){
+  var lines = [];
+  function add(k,v){ lines.push(k + ': ' + v); }
+
+  add('userAgent', navigator.userAgent);
+  add('compatMode', document.compatMode);
+  add('contentType', document.contentType);
+  add('characterSet', document.characterSet);
+  add('URL', location.href);
+
+  // Stylesheets
+  add('styleSheets.length', document.styleSheets.length);
+  for(var i=0;i<document.styleSheets.length;i++){
+    var ss=document.styleSheets[i];
+    var rules=0;
+    try{ rules=ss.cssRules?ss.cssRules.length:0; }catch(e){ rules='blocked('+e.name+')'; }
+    add('styleSheet['+i+']', (ss.href||'inline')+' rules='+rules);
+  }
+
+  // Computed styles on key elements
+  var ids=['app-shell','finder','breadcrumb'];
+  ids.forEach(function(id){
+    var el=document.getElementById(id);
+    if(!el){ add(id,'NOT FOUND'); return; }
+    var cs=getComputedStyle(el);
+    add(id+'.display', cs.display);
+    add(id+'.background', cs.backgroundColor);
+    add(id+'.visibility', cs.visibility);
+  });
+
+  // body
+  var bcs=getComputedStyle(document.body);
+  add('body.background', bcs.backgroundColor);
+  add('body.overflow', bcs.overflow);
+
+  // First .column element
+  var col=document.querySelector('.column');
+  if(col){
+    var ccs=getComputedStyle(col);
+    add('column.display', ccs.display);
+    add('column.width', ccs.width);
+  } else {
+    add('column', 'NOT FOUND');
+  }
+
+  // script elements in body – are they rendered?
+  var scripts=document.body ? document.body.querySelectorAll('script') : [];
+  add('body script count', scripts.length);
+  if(scripts.length>0){
+    var scs=getComputedStyle(scripts[0]);
+    add('body script[0].display', scs.display);
+    add('body script[0].visibility', scs.visibility);
+  }
+
+  document.getElementById('out').textContent = lines.join('\\n');
+})();
+</script>
+</body></html>"""
+    return HTMLResponse(html)
+
+
 @rt("/sse/reload")
 async def sse_reload():
     """Server-Sent Events stream; emits a reload event when files under ROOT change."""
