@@ -650,10 +650,6 @@ function _deepNavigate(fullPath, vpath) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    // Workaround: Firefox for Android (release) paints before applying author
-    // CSS on server-side-rendered deep-link pages.  Any DOM mutation forces the
-    // repaint.  (#43)
-    document.body.appendChild(document.createElement('div'));
     recalcColumnWidth();
     initZoomButton();
     initDotfilesToggle();
@@ -671,6 +667,13 @@ document.addEventListener('DOMContentLoaded', function() {
     if (deepPath) {
         _deepNavigate(deepPath, deepVpath);
     }
+});
+
+// Workaround: Firefox for Android (release) paints without author CSS on
+// server-side-rendered deep-link pages.  Firing after window load (after the
+// first paint) forces a repaint with styles correctly applied.  (#43)
+window.addEventListener('load', function() {
+    document.body.appendChild(document.createElement('div'));
 });
 
 // Selection highlighting – mark the clicked <li> as selected within its column
