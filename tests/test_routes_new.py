@@ -303,3 +303,22 @@ def test_mermaid_js_cdn_url_present(tmp_path, monkeypatch):
     resp = _client(tmp_path).get("/")
     assert "cdn.jsdelivr.net" in resp.text
     assert "mermaid" in resp.text
+
+
+# ── abcjs CDN in page head ───────────────────────────────────────────────────
+
+
+def test_abcjs_cdn_in_page_head(tmp_path, monkeypatch):
+    """The app index page includes the abcjs CDN script tag (basic bundle with synth)."""
+    monkeypatch.setattr(app_module, "ROOT", tmp_path)
+    resp = _client(tmp_path).get("/")
+    assert resp.status_code == 200
+    assert "abcjs" in resp.text
+    assert "cdn.jsdelivr.net" in resp.text
+
+
+def test_abcjs_audio_css_in_page_head(tmp_path, monkeypatch):
+    """The audio player needs abcjs-audio.css to style its synth controls."""
+    monkeypatch.setattr(app_module, "ROOT", tmp_path)
+    resp = _client(tmp_path).get("/")
+    assert "abcjs-audio.css" in resp.text

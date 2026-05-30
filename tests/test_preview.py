@@ -86,6 +86,38 @@ def test_dispatch_image(tmp_path, ext):
     assert "preview-image" in render_preview(f)
 
 
+def test_dispatch_abc(tmp_path):
+    f = tmp_path / "tune.abc"
+    f.write_text("X:1\nT:Test\nK:C\nCDEF|\n")
+    assert "preview-abc" in render_preview(f)
+
+
+def test_abc_embeds_source_in_textarea(tmp_path):
+    f = tmp_path / "tune.abc"
+    f.write_text("X:1\nT:Test\nK:C\nCDEF|\n")
+    result = render_preview(f)
+    assert '<textarea class="abc-source"' in result
+    assert "CDEF|" in result
+
+
+def test_abc_source_is_html_escaped(tmp_path):
+    """A tune with HTML-special characters must be escaped so it cannot break out."""
+    f = tmp_path / "tune.abc"
+    f.write_text('X:1\nT:A & B </textarea><script>x</script>\nK:C\nCDEF|\n')
+    result = render_preview(f)
+    assert "</textarea><script>" not in result
+    assert "&amp;" in result
+    assert "&lt;/textarea&gt;" in result
+
+
+def test_abc_has_paper_and_audio_targets(tmp_path):
+    f = tmp_path / "tune.abc"
+    f.write_text("X:1\nT:Test\nK:C\nCDEF|\n")
+    result = render_preview(f)
+    assert "abc-paper" in result
+    assert "abc-audio" in result
+
+
 def test_dispatch_unknown_ext(tmp_path):
     """Binary file with unknown extension → preview-unsupported with extension name."""
     f = tmp_path / "data.xyz"

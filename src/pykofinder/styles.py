@@ -176,6 +176,23 @@ body:not(.show-dotfiles) .column li.dotfile.selected {
     line-height: 1.6;
 }
 
+/* ABC music notation (#abcjs).  abcjs draws black notes on a transparent
+   background, invisible on the dark app theme, so give the score a white
+   "sheet of paper" surface. */
+.preview-abc {
+    max-width: 800px;
+    margin: 0 auto;
+}
+.preview-abc .abc-paper {
+    background: #fff;
+    color: #000;
+    padding: 1.2rem;
+    border-radius: 6px;
+}
+.preview-abc .abc-audio {
+    margin-top: 1rem;
+}
+
 .preview-md h1, .preview-md h2, .preview-md h3,
 .preview-md h4, .preview-md h5, .preview-md h6 {
     margin-top: 1.2em;
@@ -621,10 +638,41 @@ function initDotfilesToggle() {
     _syncDotBtn();
 }
 
+// Render any ABC music-notation previews that have not been drawn yet.  The
+// server embeds the raw notation in a hidden <textarea class="abc-source">; we
+// hand it to abcjs which paints the sheet music into .abc-paper and, when the
+// browser supports audio, wires a synth playback control into .abc-audio.
+function renderAbcPreviews() {
+    if (typeof ABCJS === 'undefined') return;
+    var blocks = document.querySelectorAll('.preview-abc:not([data-abc-rendered])');
+    for (var i = 0; i < blocks.length; i++) {
+        var block = blocks[i];
+        block.setAttribute('data-abc-rendered', '1');
+        var src = block.querySelector('.abc-source');
+        var paper = block.querySelector('.abc-paper');
+        var audio = block.querySelector('.abc-audio');
+        if (!src || !paper) continue;
+        // abcjs can throw on some scores (e.g. "pitch is undefined"); contain
+        // the failure to this one preview rather than aborting the whole pass.
+        try {
+            var tune = ABCJS.renderAbc(paper, src.value, {responsive: 'resize'});
+            if (audio && tune && tune[0] && ABCJS.synth && ABCJS.synth.supportsAudio()) {
+                var synthControl = new ABCJS.synth.SynthController();
+                synthControl.load(audio, null, {displayPlay: true, displayProgress: true});
+                synthControl.setTune(tune[0], false).catch(function() {});
+            }
+        } catch (err) {
+            paper.innerHTML = '<em>Could not render this ABC score: ' +
+                String(err && err.message || err) + '</em>';
+        }
+    }
+}
+
 document.addEventListener('htmx:afterSettle', function(e) {
     recalcColumnWidth();
     _syncDotBtn();
     _syncZoomBtn();
+    renderAbcPreviews();
     var finder = document.getElementById('finder');
     if (finder && e.detail.target && e.detail.target.id === 'preview') {
         finder.scrollLeft = finder.scrollWidth;
@@ -673,6 +721,7 @@ function _deepNavigate(fullPath, vpath) {
                 if (finder && previewEl && previewEl.children.length > 0) {
                     finder.scrollLeft = finder.scrollWidth;
                 }
+                renderAbcPreviews();
             }
         })
         .catch(function() {});
@@ -682,6 +731,7 @@ document.addEventListener('DOMContentLoaded', function() {
     recalcColumnWidth();
     initZoomButton();
     initDotfilesToggle();
+    renderAbcPreviews();
     // Deep-link: restore state from URL
     var params = new URLSearchParams(window.location.search);
     var deepPath = params.get('path');

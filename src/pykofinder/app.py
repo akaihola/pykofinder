@@ -36,6 +36,14 @@ from pykofinder.vfs import REGISTRY
 # CDN URL for mermaid.js (UMD build – sets window.mermaid on load)
 _MERMAID_CDN = "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"
 
+# CDN URL for abcjs (the "basic" bundle bundles the synth/audio engine, which
+# the plain bundle omits – needed for the in-browser playback controls)
+_ABCJS_CDN = "https://cdn.jsdelivr.net/npm/abcjs@6/dist/abcjs-basic-min.js"
+
+# Stylesheet that the abcjs synth audio control requires to render its play /
+# pause / progress widgets (without it abcjs prints "CSS required" in the player)
+_ABCJS_AUDIO_CSS = "https://cdn.jsdelivr.net/npm/abcjs@6/abcjs-audio.css"
+
 # Static files bundled with the package (PWA manifest, service worker, icons)
 _STATIC_DIR: Path = Path(__file__).parent / "static"
 
@@ -127,7 +135,9 @@ def _shell_html(*extra_head_scripts):
             Link(rel="apple-touch-icon", href="/icons/icon-192.png"),
             Style(APP_CSS),
             Script(src="https://unpkg.com/htmx.org@1.9.12"),
+            Link(rel="stylesheet", href=_ABCJS_AUDIO_CSS),
             Script(src=_MERMAID_CDN),
+            Script(src=_ABCJS_CDN),
             Script(COLUMN_JS),
             Script(_SW_REGISTER_JS),
             *extra_scripts,

@@ -15,6 +15,8 @@ def render_preview(path: Path) -> str:
         return _preview_desktop(path)
     elif ext == ".md":
         return _preview_md(path)
+    elif ext == ".abc":
+        return _preview_abc(path)
     elif ext == ".docx":
         return _preview_docx(path)
     elif ext == ".pptx":
@@ -76,6 +78,30 @@ def _preview_md(path: Path) -> str:
             path.read_text(encoding="utf-8"), {"source_path": path}
         )
         return f'<div class="preview-md">{html_body}</div>'
+    except Exception as e:
+        return (
+            f'<div class="preview-error">Preview error: {html_lib.escape(str(e))}</div>'
+        )
+
+
+def _preview_abc(path: Path) -> str:
+    """Preview an ABC music notation file — rendered client-side by abcjs.
+
+    The server only embeds the raw notation (HTML-escaped) inside a hidden
+    ``<textarea>``; the browser reads its ``.value`` and calls
+    ``ABCJS.renderAbc`` to draw the sheet music into ``.abc-paper`` and wires a
+    synth audio player into ``.abc-audio`` (see COLUMN_JS).
+    """
+    try:
+        content = path.read_text(encoding="utf-8")
+        safe = html_lib.escape(content)
+        return (
+            '<div class="preview-abc">'
+            f'<textarea class="abc-source" hidden>{safe}</textarea>'
+            '<div class="abc-paper"></div>'
+            '<div class="abc-audio"></div>'
+            "</div>"
+        )
     except Exception as e:
         return (
             f'<div class="preview-error">Preview error: {html_lib.escape(str(e))}</div>'
