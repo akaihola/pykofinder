@@ -713,6 +713,11 @@ function render(keepScroll) {
       body.appendChild(row);
     });
     body.onscroll = paintTrail;
+    /* a folded column is a click target in its own right — the rows inside it
+       are hidden, so nothing else would catch the click */
+    col.onclick = () => {
+      if (col.classList.contains("spine") || +col.dataset.fold > 0.5) unfoldTo(i);
+    };
 
     strip.appendChild(col);
     col.classList.toggle("scrollable-down", body.scrollHeight > body.clientHeight + 4);
