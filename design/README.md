@@ -207,6 +207,7 @@ untruncated name.
 | `09-trail-clamped.png` | short window, ancestor columns scrolled — trail clamps and carets instead of breaking |
 | `10-narrow-default.png` | 430px phone: dial opens at 100%, document owns the screen |
 | `11-narrow-unfolded.png` | same phone scrolled to 0% — the columns are still all there |
+| `12-settings.png` | the ⚙ menu |
 
 ## Open question
 
