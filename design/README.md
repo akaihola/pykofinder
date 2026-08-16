@@ -43,6 +43,11 @@ first draft. `scrollLeft` is read as a 0–100% dial:
 | **99%** | every column folded; the preview fills what is left |
 | **99–100%** | the spine strip itself slides away; at 100% the preview is alone |
 
+Folding is **continuous, not stepped**: within a column's own step of the dial its
+width is interpolated from full to spine width, and a crossfade riding the same
+number swaps its rows for its spine label. So the column narrows and turns into its
+spine in one motion, tracking the scroll 1:1 — no snap, no animation of its own.
+
 So the scrollbar means *"how much of the window do you want to spend on columns?"*
 Nothing is ever lost off an edge you can't get back from, and the two extremes are
 both genuinely useful: 0% is "show me the whole tree", 100% is "read this document".
@@ -137,35 +142,50 @@ glyphs for but never bound (`.nix`, `.db`, `.sqlite`, `.lock`, `.desktop`).
 | Tokens, columns, rows, three selection states, headers, dark theme | pure CSS | `styles.py` (`APP_CSS`) |
 | Column header markup + item count | small | `columns.py` (`list_column`, `list_vfs_column`) |
 | Seti font + map | 50 KB of static assets | `static/`, served like the existing PWA assets |
-| Scroll dial (rail/stage/strip + `applyScroll`) | ~60 lines JS | replaces `recalcColumnWidth`'s clamp logic |
+| Scroll dial + fold interpolation (rail/stage/strip + `applyScroll`) | ~70 lines JS | replaces `recalcColumnWidth`'s clamp logic |
 | Trail overlay | ~50 lines JS, repaints on render / column scroll / dial | `styles.py` JS block |
 | Settings popover | small | `columns.py` (`render_breadcrumb`) + CSS |
 
 Two caveats for the real implementation:
 
 - **Do not transition column width.** Folding tracks the scroll 1:1; a CSS
-  transition makes the trail paint against stale geometry.
+  transition makes the trail paint against stale geometry. Interpolating width
+  directly from `scrollLeft` is fine — that is the opposite of animating it.
 - The trail must repaint on column body scroll as well as on the dial, and skip any
   segment whose origin has scrolled out of its column body or off the left edge.
+
+## Test data
+
+The mock tree is a slice of a real Logseq vault (`~/my-knowledge`), not invented
+names — 80-character page titles, Finnish diacritics, sibling directories that
+differ only in their tail, and six levels of nesting. `private/` and
+`conversations/` are deliberately left out.
+
+That surfaced one real finding: at the first draft's 268px column cap, an
+80-character title lost about 60% of its text. The cap is now **380px**, which
+shows ~55 characters, and every row carries a `title` so the full name is one
+hover away. Wide columns are affordable precisely because the dial exists — fold
+what you are not reading. The preview header, hero and status bar all show the
+untruncated name.
 
 ## Screenshots
 
 | File | Shows |
 | --- | --- |
-| `01-default.png` | opening state, three columns |
-| `02-deep-default.png` | six levels deep, default dial position |
-| `03-scroll-000.png` | dial at 0% — nothing folded, preview overflows right |
-| `04-scroll-035.png` | dial mid-way |
+| `01-default.png` | opening state — `~/my-knowledge/pages/Library/Read Later`, 3 of 5 folded to pay for the long titles |
+| `02-scroll-000.png` | dial at 0% — nothing folded, preview overflows right |
+| `03-fold-midway.png` | a column caught mid-fold: narrowed, rows fading out, spine icon fading in |
+| `04-scroll-040.png` | dial at 40% |
 | `05-scroll-099.png` | dial at 99% — all folded, preview fills |
 | `06-scroll-100.png` | dial at 100% — preview alone |
-| `07-settings.png` | the ⚙ menu |
+| `07-deep-finnish.png` | six levels into `pages/Life/Koivusyrjän pihan hoito/assets` |
 | `08-dark.png` | dark theme |
 
 ## Open question
 
 **Trail weight at 6+ columns.** Settled as good at the current 2px solid / soft
-thread. Worth one more look once it is running against real directory listings,
-where more columns are scrolled mid-list and more segments get suppressed.
+thread. Worth one more look once it runs against live listings, where more columns
+are scrolled mid-list and more segments get suppressed.
 
 [proto]: ./miller-columns.html
 [shots]: ./shots/

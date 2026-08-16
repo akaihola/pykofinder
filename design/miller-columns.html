@@ -177,6 +177,7 @@ body {
   background: var(--surface);
   box-shadow: var(--shadow-col);
   transition: background-color .18s;   /* NOT width: folding tracks the scroll 1:1 */
+  --fold: 0;
 }
 /* Depth recession: ancestors sink toward the chrome, focus stays bright. */
 .col[data-depth="1"] { background: color-mix(in srgb, var(--surface) calc(100% - 1 * var(--recede-amt)), var(--recede)); }
@@ -279,14 +280,23 @@ body {
 .row.cursor { box-shadow: 0 0 0 2px var(--accent), 0 0 0 4px var(--accent-weak); }
 .col.focus .row.cursor.sel { box-shadow: none; }
 
-/* ── Folded ancestor spines ────────────────────────────────────────────── */
+/* ── Folding: continuous, driven straight off the scroll dial ──────────── */
+/* --fold runs 0→1 across the column's own step of the dial. Width is
+   interpolated in JS; the crossfade below rides the same number, so the
+   column narrows and turns into its spine in one continuous motion. */
 .col.spine { width: var(--spine-w) !important; cursor: pointer; }
 .col.spine .col-head, .col.spine .col-body { display: none; }
-.col.spine .spine-label {
-  display: flex; flex-direction: column; align-items: center;
-  gap: 9px; padding: 9px 0; height: 100%; overflow: hidden;
+.col.folding .col-head, .col.folding .col-body {
+  opacity: clamp(0, calc(1.6 - var(--fold) * 2), 1);
 }
-.col:not(.spine) .spine-label { display: none; }
+.spine-label {
+  position: absolute; inset: 0; z-index: 2;
+  display: flex; flex-direction: column; align-items: center;
+  gap: 9px; padding: 9px 0; overflow: hidden;
+  opacity: 0; pointer-events: none;
+}
+.col.spine .spine-label { opacity: 1; }
+.col.folding .spine-label { opacity: clamp(0, calc(var(--fold) * 2 - 1), 1); }
 /* the chosen child stays visible even when its column is folded away */
 .spine-label .dot {
   flex: 0 0 auto; width: 20px; height: 20px; border-radius: 50%;
@@ -423,6 +433,132 @@ const TREE = d("~", [
     f("avatar.png","24 KB","3 Jan 2026"),
   ]),
   d("Downloads", [ f("uv-0.9.2.tar.gz","14 MB","12 Aug 2026"), f("playwright.zip","98 MB","9 Aug 2026") ]),
+  /* ── real names, real depth: a slice of an actual Logseq vault ─────────────
+     Generated from ~/my-knowledge (private/ and conversations/ left out).
+     This is the stress case: 80-character titles, Finnish diacritics, sibling
+     directories that differ only in their tail, and six levels of nesting. */
+  d("my-knowledge", [
+    d("archives", []),
+    d("bin", []),
+    d("docs", [
+      d("agents", []),
+      d("superpowers", []),
+      f("android-periodic-photos.md", "6.4 KB", "14 Feb 2026"),
+      f("kuuskaks-debloat.md", "4.3 KB", "14 Feb 2026"),
+      f("kuuskaks-packages-before.txt", "10 KB", "14 Feb 2026"),
+      f("literate.md", "36 KB", "26 Mar 2026"),
+      f("pkmctl-hooks-schedulers.md", "6.9 KB", "9 Aug 2026"),
+      f("pkmctl-instruction-surface.md", "1.4 KB", "9 Aug 2026"),
+      f("pkmctl-portfolio-triage.md", "5.5 KB", "9 Aug 2026"),
+    ]),
+    d("journals", [
+      d("2024", []), d("2025", []), d("2026", []), d("media", []),
+      f("ccm-third-party-max-policy-research-2026-04-08.md", "7.9 KB", "8 Apr 2026"),
+      f("ccm-token-watch-2026-03-09.md", "71 KB", "4 Apr 2026"),
+      f("ccm-token-watch-2026-04-08.md", "5.9 KB", "8 Apr 2026"),
+    ]),
+    d("pages", [
+      d("Areas", []), d("Cheat Sheets", []), d("Coaching", []), d("Hawkins book club", []),
+      d("IT", [
+        d("devices", []),
+        f("Active Projects Dashboard.md", "3.5 KB", "7 Mar 2026"),
+        f("Agent memory architecture - 2026 practical patterns.md", "6.3 KB", "13 Mar 2026"),
+        f("Agent orchestrator deployment plans - 2026-07.md", "13 KB", "22 Jul 2026"),
+        f("Agentic Coding - minimaxir Learnings.md", "8.7 KB", "8 Mar 2026"),
+        f("Agentic coding tools - promising tools and optimisations.md", "8.7 KB", "18 May 2026"),
+        f("AI Agent Crypto Tracking.md", "15 KB", "23 Feb 2026"),
+        f("AI coding agent control planes - Kandev Copilot Gas Town and Beads - 2026-08.md", "17 KB", "9 Aug 2026"),
+        f("AI Keyboard Screen Context Research.md", "8.1 KB", "23 Feb 2026"),
+        f("Asana Integration Analysis.md", "8.8 KB", "7 Mar 2026"),
+        f("Asana Plugin vs Skill Analysis.md", "5.8 KB", "13 Feb 2026"),
+        f("Atom Session Access Options.md", "11 KB", "28 May 2026"),
+        f("Backup Management.md", "338 B", "13 Feb 2026"),
+        f("CCM OAuth refresh investigation 2026-04-03.md", "5.3 KB", "3 Apr 2026"),
+      ]),
+      d("Library", [
+        d("Clippings", [
+          f("The Five Levels from Spicy Autocomplete to the Dark Factory 1.md", "40 B", "13 Feb 2026"),
+          f("The Five Levels from Spicy Autocomplete to the Dark Factory.md", "6.4 KB", "13 Feb 2026"),
+        ]),
+        d("Read Later", [
+          f("Beyond the Holacracy Hype.md", "2.9 KB", "13 Feb 2026"),
+          f("Emotional Intelligence Consortium - Articles, Research and Information on E.md", "12 KB", "13 Feb 2026"),
+          f("Game B - Game B Wiki.md", "99 KB", "13 Feb 2026"),
+          f("Google Project Aristotle - 5 Keys to Team Success - Modern Operations Apps.md", "7.1 KB", "13 Feb 2026"),
+          f("Hey folks, here's the entire Computer Science curriculum organized in 1000 .md", "9.1 KB", "13 Feb 2026"),
+          f("How to Become a High-Performing Software Team.md", "5.4 KB", "13 Feb 2026"),
+          f("Hypermodern Python Cookiecutter documentation.md", "3.8 KB", "13 Feb 2026"),
+          f("Image alignment and registration with OpenCV - PyImageSearch.md", "27 KB", "13 Feb 2026"),
+          f("Production-ready Docker Containers with uv.md", "9.9 KB", "13 Feb 2026"),
+          f("Psych Safety and Team EI The Antidote to the Five Dysfunctions of a Team -.md", "7.8 KB", "8 Mar 2026"),
+          f("Revenge of the PMO - Silicon Valley Product Group  Silicon Valley Product Group.md", "13 KB", "13 Feb 2026"),
+          f("Running Python in the Browser – Python Tips.md", "14 KB", "13 Feb 2026"),
+          f("Scrum Master Theses From a Holistic Product Creation Perspective.md", "23 KB", "13 Feb 2026"),
+          f("Six easy ways to run your Jupyter Notebook in the cloud.md", "44 KB", "13 Feb 2026"),
+        ]),
+      ]),
+      d("Life", [
+        d("Koivusyrjän pihan hoito", [
+          d("assets", [
+            f("koivusyrja-ilmakuva.jpg", "63 KB", "17 Jul 2026"),
+            f("koivusyrja-karttapohja.svg", "2.6 KB", "17 Jul 2026"),
+          ]),
+          f("AGENTS.md", "4.0 KB", "17 Jul 2026"),
+          f("Ajankohtainen katsaus.md", "3.7 KB", "13 Aug 2026"),
+          f("Ideoita muista puutarha-agenteista.md", "5.2 KB", "17 Jul 2026"),
+          f("Kasvirekisteri.md", "4.1 KB", "18 Jul 2026"),
+          f("Koivusyrjä-puutarhakartta.geojson", "2.6 KB", "17 Jul 2026"),
+          f("Koivusyrjän puutarha-agentti.md", "2.5 KB", "18 Jul 2026"),
+          f("Kuukausikatsaus.md", "4.8 KB", "1 Aug 2026"),
+          f("Neuvontakierros 2026-07-18.md", "12 KB", "18 Jul 2026"),
+          f("Perheen käyttöohje.md", "1.6 KB", "17 Jul 2026"),
+          f("Pihan alueet.md", "3.0 KB", "18 Jul 2026"),
+          f("Puutarhakartta.md", "4.4 KB", "17 Jul 2026"),
+          f("Puutarhapäiväkirja.md", "2.1 KB", "18 Jul 2026"),
+          f("Rusopajuangervon leikkaus.md", "1.6 KB", "17 Jul 2026"),
+        ]),
+        d("Kuluttaja-asiat", []),
+        d("Tottila", []),
+        f("_index.md", "2.4 KB", "9 Aug 2026"),
+      ]),
+      d("PKB", [
+        d("AI agent intelligence", []), d("Pi Session Reviews", []), d("reviews", []),
+        f("ACP watchdog health report.md", "76 B", "15 Jul 2026"),
+        f("Agent memory - Open Brain architecture (Nate B Jones).md", "14 KB", "17 Apr 2026"),
+        f("Agentic Markdown project and task systems - research synthesis.md", "60 KB", "16 Aug 2026"),
+        f("AI agent intelligence watchlist.md", "3.1 KB", "15 Apr 2026"),
+        f("Discarded topics.md", "548 B", "19 Jul 2026"),
+        f("gas-grill-comparison-data.md", "5.8 KB", "25 Jul 2026"),
+        f("Glossary.md", "5.2 KB", "5 Jun 2026"),
+        f("Improvement backlog.md", "5.8 KB", "16 Jul 2026"),
+        f("inbox.md", "11 KB", "15 Aug 2026"),
+        f("index.md", "2.5 KB", "9 Aug 2026"),
+      ]),
+      d("Piano", []), d("Projects", []), d("Public", []),
+      d("Resources", [ d("Agile", []), d("AI Coding Agents", []) ]),
+      d("Routines", []), d("Self-Development", []), d("Slurped Pages", []), d("Software", []),
+      d("tasks", [
+        f("task-apply-the-57-portfolio-triage-decisions-to-vault-records.md", "3.1 KB", "12 Aug 2026"),
+        f("task-define-the-vault-convention-for-project-area-idea-close-and-routine-classifications.md", "5.4 KB", "12 Aug 2026"),
+        f("task-generate-the-unified-whole-portfolio-orientation-view.md", "2.2 KB", "12 Aug 2026"),
+        f("task-korjaa-koivusyrj-n-lasitetun-terassin-haljennut-pleksikatto.md", "1.4 KB", "9 Aug 2026"),
+        f("task-retire-or-supersede-the-split-project-and-life-dashboards.md", "1.9 KB", "12 Aug 2026"),
+        f("task-run-pkmctl-lint-and-commit-the-triage-batch.md", "1.1 KB", "12 Aug 2026"),
+        f("task-siirr-agent-style-repositorio-atomilta-gogolle.md", "1.6 KB", "9 Aug 2026"),
+        f("task-update-and-close-github-issue-28-after-triage-acceptance.md", "1.3 KB", "12 Aug 2026"),
+        f("task-verify-and-enforce-the-portfolio-wip-limit.md", "980 B", "12 Aug 2026"),
+      ]),
+      d("work", []),
+      f("Ostoslista.md", "1.1 KB", "14 Aug 2026"),
+      f("Quotes.md", "3.4 KB", "5 Jun 2026"),
+      f("Start page.md", "2.8 KB", "9 Aug 2026"),
+    ]),
+    f("AGENTS.md", "18 KB", "9 Aug 2026"),
+    f("CODING_STANDARDS.md", "118 B", "9 Aug 2026"),
+    f("HEARTBEAT.md", "1.8 KB", "21 Feb 2026"),
+    f("IDENTITY.md", "751 B", "13 Feb 2026"),
+    f("README.md", "2.7 KB", "22 Mar 2026"),
+  ]),
   d(".config", [ d("coding-agents", [ f("AGENTS.md","6 KB","16 Aug 2026"), f("python.md","3 KB","2 Aug 2026") ]) ]),
   f(".zshrc","2 KB","1 Jul 2026"),
   f("TODO.md","1.2 KB","16 Aug 2026"),
@@ -456,9 +592,10 @@ const stage   = document.getElementById("stage");
 const strip   = document.getElementById("strip");
 const trail   = document.getElementById("trail");
 
-let path = [TREE, TREE.kids[1], TREE.kids[1].kids[0]];  // ~/Projects/pykofinder
-let sel  = ["Projects", "pykofinder", "README.md"];      // selection per column
-let focusCol = 2;
+const START = ["my-knowledge", "pages", "Library", "Read Later"];
+let path = START.reduce((acc, nm) => [...acc, acc.at(-1).kids.find(k => k.name === nm)], [TREE]);
+let sel  = [...START, "Revenge of the PMO - Silicon Valley Product Group  Silicon Valley Product Group.md"];
+let focusCol = START.length;
 let cursor = {};                                         // col index -> row index
 let widths = [];                                         // natural width per column
 let folded = 0;                                          // columns currently folded
@@ -496,7 +633,9 @@ function measure(node) {
   for (const k of visibleKids(node)) w = Math.max(w, c.measureText(k.name).width);
   c.font = `600 ${cs.getPropertyValue("--fs-head").trim()} ${cs.getPropertyValue("--font")}`;
   w = Math.max(w, c.measureText(node.name).width + 34);
-  return Math.min(268, Math.max(148, Math.ceil(w) + 58));
+  /* 380 not 268: a vault of 80-character page titles needs the room, and the
+     dial makes wide columns affordable — fold what you are not reading. */
+  return Math.min(380, Math.max(148, Math.ceil(w) + 58));
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -534,6 +673,7 @@ function render(keepScroll) {
         + (sel[i] === k.name ? " sel" : "")
         + (k.name.startsWith(".") ? " dotfile" : "")
         + (i === focusCol && cursor[i] === ri ? " cursor" : "");
+      row.title = k.name;   /* the full name is always one hover away */
       row.innerHTML = iconHTML(k)
         + `<span class="label">${stem}<span class="dim">${ext}</span></span>`
         + (k.dir ? `<span class="chev">›</span>` : "");
@@ -620,11 +760,20 @@ function applyScroll() {
   const n = path.length;
 
   /* the epsilon absorbs sub-pixel scrollLeft rounding at the fold boundaries */
-  folded = Math.min(n, Math.floor(p / foldUnit() + 0.002));
+  const raw = p / foldUnit() + 0.002;
+  folded = Math.min(n, Math.floor(raw));
+  /* how far into folding the next column is — 0 = full width, 1 = a spine */
+  const t = Math.min(1, Math.max(0, raw - folded));
+
   [...strip.querySelectorAll(".col")].forEach((col, i) => {
-    const spine = i < folded;
-    col.classList.toggle("spine", spine);
-    col.style.width = spine ? "" : widths[i] + "px";
+    col.classList.toggle("spine", i < folded);
+    col.classList.toggle("folding", i === folded && folded < n);
+    if (i < folded) { col.style.width = ""; return; }
+    col.dataset.fold = i === folded ? t : 0;
+    col.style.setProperty("--fold", col.dataset.fold);
+    col.style.width = (i === folded
+      ? Math.round(widths[i] + (SPINE() - widths[i]) * t)
+      : widths[i]) + "px";
   });
 
   /* last 1%: slide the spine strip itself off the left edge. Widening the strip
@@ -652,6 +801,9 @@ function paintTrail() {
   trail.style.width = fr.width + "px"; trail.style.height = fr.height + "px";
   let out = "";
 
+  /* a column past the crossfade midpoint anchors on its spine icon, not its rows */
+  const asSpine = el => el.classList.contains("spine") || +(el.dataset.fold || 0) > 0.5;
+
   const cols = [...strip.querySelectorAll(".col")];
   cols.forEach((col, i) => {
     const next = cols[i + 1] || document.getElementById("preview");
@@ -660,7 +812,7 @@ function paintTrail() {
 
     /* start: right edge of the selected pill, or the spine's icon when folded */
     let x1, y1;
-    if (col.classList.contains("spine")) {
+    if (asSpine(col)) {
       const dot = col.querySelector(".dot").getBoundingClientRect();
       x1 = cr.right - fr.left; y1 = dot.top + dot.height / 2 - fr.top;
     } else {
@@ -675,7 +827,7 @@ function paintTrail() {
     if (x1 < 0) return;   /* origin has slid off the left edge — no dangling hook */
 
     /* end: the next column's header — or its spine icon when that one is folded */
-    const anchor = next.classList.contains("spine")
+    const anchor = asSpine(next)
       ? next.querySelector(".dot") : next.querySelector(".col-head");
     const ar = anchor && anchor.getBoundingClientRect();
     const x2 = nr.left - fr.left;
