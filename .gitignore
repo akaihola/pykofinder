@@ -20,3 +20,6 @@ htmlcov/
 # dora code context index
 .dora/
 .aider*
+
+# third-party reference screenshots, kept locally only
+design/refs/

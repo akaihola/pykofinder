@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light" data-density="comfortable">
+<head>
+<meta charset="utf-8">
+<title>Pykoclaw — Miller Columns design study</title>
+<style>
+/* ═══════════════════════════════════════════════════════════════════════════
+   PYKOCLAW MILLER COLUMNS — "Trail"
+   Design tokens. Everything downstream is derived from these.
+   ═══════════════════════════════════════════════════════════════════════════ */
+:root {
+  --font: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", "Helvetica Neue", sans-serif;
+  --mono: "SF Mono", "JetBrains Mono", "Fira Code", ui-monospace, monospace;
+
+  --fs-row: 13px;
+  --fs-head: 12px;
+  --fs-meta: 11px;
+
+  /* density-driven */
+  --row-h: 26px;
+  --row-gap: 1px;
+  --head-h: 30px;
+  --col-pad: 5px;      /* inset gutter each side of a row */
+  --gutter: 13px;      /* space between columns — where the trail lives */
+  --radius: 7px;
+
+  /* light palette */
+  --accent:        #2f6df6;
+  --accent-weak:   color-mix(in srgb, var(--accent) 13%, transparent);
+  --accent-soft:   color-mix(in srgb, var(--accent) 30%, transparent);
+  --accent-ink:    color-mix(in srgb, var(--accent) 88%, #000 12%);
+
+  --chrome:        #e7e7ec;   /* window / gutter background */
+  --surface:       #ffffff;   /* focused column */
+  --surface-2:     #fbfbfd;   /* preview */
+  --ink:           #16171a;
+  --ink-2:         #55575e;   /* secondary text */
+  --ink-3:         #8b8d96;   /* tertiary / counts */
+  --hairline:      rgba(0,0,0,.085);
+  --hairline-2:    rgba(0,0,0,.14);
+  --hover:         rgba(0,0,0,.045);
+  --shadow-col:    0 0 0 .5px rgba(0,0,0,.05), 0 1px 3px rgba(0,0,0,.05);
+  --recede:        #000;      /* what ancestors fade toward */
+  --recede-amt:    3.2%;      /* per-level recession */
+}
+
+:root[data-density="compact"] {
+  --row-h: 21px; --head-h: 26px; --fs-row: 12px; --radius: 5px;
+  --col-pad: 4px; --gutter: 10px;
+}
+
+:root[data-theme="dark"] {
+  --accent:      #5b8dff;
+  --accent-ink:  color-mix(in srgb, var(--accent) 92%, #fff 8%);
+  --chrome:      #1b1d21;
+  --surface:     #26292e;
+  --surface-2:   #22252a;
+  --ink:         #e9eaee;
+  --ink-2:       #a4a8b2;
+  --ink-3:       #71757f;
+  --hairline:    rgba(255,255,255,.075);
+  --hairline-2:  rgba(255,255,255,.13);
+  --hover:       rgba(255,255,255,.06);
+  --shadow-col:  0 0 0 .5px rgba(0,0,0,.5), 0 1px 4px rgba(0,0,0,.35);
+  --recede:      #000;
+  --recede-amt:  4.5%;
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0; font-family: var(--font); font-size: var(--fs-row);
+  color: var(--ink); background: var(--chrome);
+  overflow: hidden; -webkit-font-smoothing: antialiased;
+}
+
+/* ── App shell ─────────────────────────────────────────────────────────── */
+#shell { display: flex; flex-direction: column; height: 100%; }
+
+/* ── Breadcrumb / toolbar ──────────────────────────────────────────────── */
+#bar {
+  flex: 0 0 auto; display: flex; align-items: center; gap: 2px;
+  height: 38px; padding: 0 10px;
+  background: color-mix(in srgb, var(--chrome) 70%, var(--surface));
+  border-bottom: 1px solid var(--hairline);
+  font-size: var(--fs-head);
+}
+#crumbs { display: flex; align-items: center; gap: 1px; min-width: 0; overflow: hidden; }
+.crumb {
+  padding: 3px 7px; border-radius: 5px; color: var(--ink-2); cursor: pointer;
+  white-space: nowrap; border: 1px solid transparent;
+}
+.crumb:hover { background: var(--hover); color: var(--ink); }
+.crumb.here { color: var(--ink); font-weight: 590; }
+.crumb-sep { color: var(--ink-3); opacity: .55; user-select: none; }
+.spacer { flex: 1; }
+
+.tool {
+  font: inherit; font-size: var(--fs-meta); color: var(--ink-2);
+  background: transparent; border: 1px solid transparent;
+  border-radius: 6px; padding: 4px 8px; cursor: pointer; white-space: nowrap;
+}
+.tool:hover { background: var(--hover); color: var(--ink); }
+.tool[aria-pressed="true"] {
+  background: var(--accent); border-color: var(--accent); color: #fff;
+}
+.tool.mono { font-family: var(--mono); }
+#bar .sep { width: 1px; height: 18px; background: var(--hairline-2); margin: 0 6px; }
+
+/* ── Finder: the column strip ──────────────────────────────────────────── */
+#finder {
+  position: relative; flex: 1; min-height: 0;
+  display: flex; align-items: stretch;
+  padding: var(--gutter); gap: var(--gutter);
+  overflow: hidden;
+}
+
+/* the trail overlay is painted between columns */
+#trail {
+  position: absolute; inset: 0; pointer-events: none; z-index: 3;
+  overflow: visible;
+}
+#trail path { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linecap: round; }
+#trail path.thread { stroke: var(--accent-soft); }
+
+/* ── A column ──────────────────────────────────────────────────────────── */
+.col {
+  position: relative; flex: 0 0 auto;
+  display: flex; flex-direction: column; min-height: 0;
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: var(--shadow-col);
+  transition: width .18s cubic-bezier(.2,.7,.3,1), background-color .18s;
+}
+/* Depth recession: ancestors sink toward the chrome, focus stays bright. */
+.col[data-depth="1"] { background: color-mix(in srgb, var(--surface) calc(100% - 1 * var(--recede-amt)), var(--recede)); }
+.col[data-depth="2"] { background: color-mix(in srgb, var(--surface) calc(100% - 2 * var(--recede-amt)), var(--recede)); }
+.col[data-depth="3"] { background: color-mix(in srgb, var(--surface) calc(100% - 3 * var(--recede-amt)), var(--recede)); }
+.col[data-depth="4"] { background: color-mix(in srgb, var(--surface) calc(100% - 4 * var(--recede-amt)), var(--recede)); }
+.col[data-depth="5"] { background: color-mix(in srgb, var(--surface) calc(100% - 5 * var(--recede-amt)), var(--recede)); }
+
+/* Column header — the thing macOS Finder is missing. */
+.col-head {
+  flex: 0 0 auto; height: var(--head-h);
+  display: flex; align-items: center; gap: 6px;
+  padding: 0 10px; border-bottom: 1px solid var(--hairline);
+  border-radius: 10px 10px 0 0;
+  font-size: var(--fs-head); font-weight: 590; color: var(--ink-2);
+  white-space: nowrap; overflow: hidden;
+  background: linear-gradient(to bottom,
+              color-mix(in srgb, currentColor 4%, transparent), transparent);
+}
+.col-head .name {
+  overflow: hidden; text-overflow: ellipsis; direction: rtl; text-align: left;
+}
+.col-head .name > span { direction: ltr; unicode-bidi: embed; }
+.col-head .count {
+  margin-left: auto; font-size: var(--fs-meta); font-weight: 450;
+  color: var(--ink-3); font-variant-numeric: tabular-nums;
+}
+.col.focus .col-head { color: var(--ink); }
+.col.focus .col-head::after {
+  content: ""; position: absolute; left: 10px; right: 10px;
+  top: calc(var(--head-h) - 1px); height: 2px; border-radius: 2px;
+  background: var(--accent);
+}
+
+/* Scroll body + edge fades so a long list never looks truncated by accident */
+.col-body {
+  flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden;
+  padding: var(--col-pad) 0 var(--col-pad);
+  scrollbar-width: thin; scrollbar-color: var(--hairline-2) transparent;
+}
+.col-body::-webkit-scrollbar { width: 8px; }
+.col-body::-webkit-scrollbar-thumb {
+  background: var(--hairline-2); border-radius: 4px;
+  border: 2px solid transparent; background-clip: content-box;
+}
+.col::after { /* bottom scroll fade */
+  content: ""; position: absolute; left: 1px; right: 1px; bottom: 1px; height: 22px;
+  border-radius: 0 0 10px 10px; pointer-events: none; opacity: 0;
+  background: linear-gradient(to top, var(--surface), transparent);
+  transition: opacity .15s;
+}
+.col.scrollable-down::after { opacity: .95; }
+
+/* ── Rows ──────────────────────────────────────────────────────────────── */
+.row {
+  display: flex; align-items: center; gap: 7px;
+  height: var(--row-h); margin: var(--row-gap) var(--col-pad);
+  padding: 0 6px 0 7px; border-radius: var(--radius);
+  cursor: default; user-select: none; white-space: nowrap;
+  border: 1px solid transparent;
+  position: relative;
+}
+.row .ico {
+  flex: 0 0 16px; width: 16px; text-align: center;
+  font-size: 13px; line-height: 1;
+  filter: saturate(.8);
+}
+.row .label {
+  flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis;
+}
+.row .label .dim { color: var(--ink-3); }   /* extension is de-emphasised */
+.row .chev {
+  flex: 0 0 auto; color: var(--ink-3); font-size: 11px; opacity: .7;
+  transform: translateY(-.5px);
+}
+.row.dotfile { opacity: .5; }
+.row:hover:not(.sel) { background: var(--hover); }
+
+/* Three distinct selection states — all legible, unlike Finder's grey-out. */
+/* 1. FOCUS column: solid accent — "you are here". */
+.col.focus .row.sel {
+  background: var(--accent); color: #fff;
+}
+.col.focus .row.sel .chev,
+.col.focus .row.sel .label .dim { color: rgba(255,255,255,.72); }
+.col.focus .row.sel .ico { filter: none; }
+
+/* 2. ANCESTOR columns: outlined pill — "the trail you walked". */
+.col.ancestor .row.sel {
+  background: var(--accent-weak);
+  border-color: var(--accent-soft);
+  color: var(--accent-ink); font-weight: 560;
+}
+.col.ancestor .row.sel .chev { color: var(--accent-soft); }
+
+/* 3. DESCENDANT columns: ghost pill — "remembered, not active". */
+.col.descendant .row.sel {
+  background: transparent;
+  border-color: var(--hairline-2);
+  border-style: dashed;
+  color: var(--ink-2);
+}
+
+/* keyboard cursor ring, independent of selection */
+.row.cursor { box-shadow: 0 0 0 2px var(--accent), 0 0 0 4px var(--accent-weak); }
+.col.focus .row.cursor.sel { box-shadow: none; }
+
+/* ── Condensed ancestor spines (the space-saving trick Finder lacks) ────── */
+.col.spine { width: 34px !important; min-width: 34px; cursor: pointer; }
+.col.spine .col-head, .col.spine .col-body { display: none; }
+.col.spine .spine-label {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 9px; padding: 9px 0; height: 100%; overflow: hidden;
+}
+.col:not(.spine) .spine-label { display: none; }
+/* the chosen child stays visible even when its column is folded away */
+.spine-label .dot {
+  flex: 0 0 auto; width: 18px; height: 18px; border-radius: 50%;
+  display: grid; place-items: center; font-size: 11px;
+  background: var(--accent-weak); box-shadow: inset 0 0 0 1px var(--accent-soft);
+}
+.spine-label .txt {
+  writing-mode: vertical-rl; text-orientation: mixed;
+  font-size: var(--fs-meta); color: var(--ink-2); letter-spacing: .2px;
+  overflow: hidden; text-overflow: ellipsis; max-height: 100%;
+}
+.col.spine:hover { background: var(--surface); }
+.col.spine:hover .txt { color: var(--ink); }
+
+/* ── Preview pane ──────────────────────────────────────────────────────── */
+#preview {
+  flex: 1 1 0; min-width: 260px; border-radius: 10px;
+  background: var(--surface-2); box-shadow: var(--shadow-col);
+  display: flex; flex-direction: column; min-height: 0; overflow: hidden;
+}
+#preview .col-head { border-radius: 10px 10px 0 0; }
+#preview .pv-body { flex: 1; min-height: 0; overflow: auto; padding: 22px 26px; }
+.pv-hero {
+  display: flex; align-items: center; gap: 14px; margin-bottom: 18px;
+  padding-bottom: 16px; border-bottom: 1px solid var(--hairline);
+}
+.pv-hero .big { font-size: 40px; line-height: 1; }
+.pv-hero h2 { margin: 0 0 3px; font-size: 16px; font-weight: 600; }
+.pv-hero .sub { color: var(--ink-3); font-size: var(--fs-meta); }
+.pv-body p { color: var(--ink-2); line-height: 1.65; max-width: 62ch; }
+.pv-body code { font-family: var(--mono); font-size: 12px;
+  background: var(--hover); padding: 1px 5px; border-radius: 4px; }
+.pv-empty {
+  flex: 1; display: grid; place-content: center; text-align: center;
+  color: var(--ink-3); gap: 6px;
+}
+.pv-empty .glyph { font-size: 34px; opacity: .35; }
+.meta { display: grid; grid-template-columns: max-content 1fr; gap: 6px 18px;
+  margin-top: 20px; font-size: 12px; }
+.meta dt { color: var(--ink-3); }
+.meta dd { margin: 0; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+
+/* ── Status strip ──────────────────────────────────────────────────────── */
+#status {
+  flex: 0 0 auto; height: 24px; display: flex; align-items: center; gap: 14px;
+  padding: 0 12px; font-size: var(--fs-meta); color: var(--ink-3);
+  border-top: 1px solid var(--hairline);
+  background: color-mix(in srgb, var(--chrome) 70%, var(--surface));
+}
+#status kbd {
+  font-family: var(--mono); font-size: 10px; padding: 1px 4px; border-radius: 3px;
+  border: 1px solid var(--hairline-2); color: var(--ink-2);
+}
+</style>
+</head>
+<body>
+<div id="shell">
+  <div id="bar">
+    <div id="crumbs"></div>
+    <div class="spacer"></div>
+    <button class="tool mono" id="t-dot" aria-pressed="false" title="Show dotfiles">.*</button>
+    <div class="sep"></div>
+    <button class="tool" id="t-density" title="Row density">Comfortable</button>
+    <button class="tool" id="t-condense" aria-pressed="true" title="Condense distant columns to spines">Condense</button>
+    <button class="tool" id="t-theme" title="Light / dark">◐ Dark</button>
+  </div>
+
+  <div id="finder">
+    <svg id="trail"></svg>
+    <!-- columns injected here -->
+  </div>
+
+  <div id="status">
+    <span id="st-path"></span>
+    <div class="spacer"></div>
+    <span><kbd>↑</kbd><kbd>↓</kbd> move</span>
+    <span><kbd>→</kbd> open</span>
+    <span><kbd>←</kbd> back</span>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════════════
+   Mock filesystem
+   ═══════════════════════════════════════════════════════════════════════════ */
+const d = (name, kids) => ({ name, dir: true, kids });
+const f = (name, size, mod) => ({ name, size, mod });
+
+const TREE = d("~", [
+  d("Documents", [
+    d("Invoices 2026", [ f("2026-01 Acme.pdf","82 KB","3 Feb 2026"), f("2026-02 Acme.pdf","79 KB","2 Mar 2026"), f("2026-03 Northwind.pdf","104 KB","1 Apr 2026") ]),
+    d("Contracts", [ f("NDA-Canton.pdf","220 KB","6 Sep 2025"), f("MSA-signed.pdf","1.1 MB","14 Jan 2026") ]),
+    f("Reading list.md","4 KB","11 Aug 2026"),
+    f("budget.xlsx","61 KB","2 Aug 2026"),
+  ]),
+  d("Projects", [
+    d("pykofinder", [
+      d("src", [ d("pykofinder", [
+        f("app.py","28 KB","16 Aug 2026"), f("cli.py","1.6 KB","2 Aug 2026"),
+        f("columns.py","11 KB","15 Aug 2026"), f("preview.py","7 KB","9 Aug 2026"),
+        f("rendering.py","9 KB","9 Aug 2026"), f("styles.py","34 KB","16 Aug 2026"),
+        f("vfs.py","2.8 KB","1 Aug 2026"),
+        d("providers", [ f("csv_provider.py","3 KB","1 Aug 2026"), f("json_provider.py","4 KB","1 Aug 2026"), f("sqlite.py","8 KB","1 Aug 2026") ]),
+      ])]),
+      d("tests", [ f("test_columns.py","6 KB","15 Aug 2026"), f("test_preview.py","12 KB","9 Aug 2026"), f("test_browser_keyboard.py","5 KB","12 Aug 2026") ]),
+      d("lmt", [ f("01-foundation.md","3 KB","7 Aug 2026"), f("02-styles.md","13 KB","7 Aug 2026"), f("04-columns.md","14 KB","7 Aug 2026") ]),
+      f(".gitignore","218 B","5 Aug 2026"),
+      f("CONTRIBUTING.md","4.6 KB","10 Aug 2026"),
+      f("ISSUES.md","17.7 KB","16 Aug 2026"),
+      f("README.md","4.0 KB","14 Aug 2026"),
+      f("pyproject.toml","811 B","6 Aug 2026"),
+      f("catalogue.db","2.4 MB","16 Aug 2026"),
+    ]),
+    d("nixos-config", [ f("flake.nix","3 KB","4 Aug 2026"), d("home-manager", [ f("default.nix","9 KB","4 Aug 2026") ]) ]),
+    d("tiro", [ f("README.md","2 KB","30 Jul 2026") ]),
+  ]),
+  d("Pictures", [
+    d("Screenshots", [ f("2026-08-14 miller.png","480 KB","14 Aug 2026"), f("2026-08-16 trail.png","512 KB","16 Aug 2026") ]),
+    f("avatar.png","24 KB","3 Jan 2026"),
+  ]),
+  d("Downloads", [ f("uv-0.9.2.tar.gz","14 MB","12 Aug 2026"), f("playwright.zip","98 MB","9 Aug 2026") ]),
+  d(".config", [ d("coding-agents", [ f("AGENTS.md","6 KB","16 Aug 2026"), f("python.md","3 KB","2 Aug 2026") ]) ]),
+  f(".zshrc","2 KB","1 Jul 2026"),
+  f("TODO.md","1.2 KB","16 Aug 2026"),
+]);
+
+/* icons: folders get a tinted glyph, files get a type glyph */
+const ICON = {
+  dir: "📁", md: "📝", pdf: "📑", py: "🐍", db: "🗄", png: "🖼", jpg: "🖼",
+  toml: "⚙", nix: "❄", xlsx: "📊", csv: "📊", zip: "🗜", gz: "🗜", json: "⛁",
+  txt: "📄", desktop: "🔗",
+};
+const iconFor = n => n.dir ? ICON.dir : (ICON[n.name.split(".").pop().toLowerCase()] || "📄");
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   State
+   ═══════════════════════════════════════════════════════════════════════════ */
+let path = [TREE, TREE.kids[1], TREE.kids[1].kids[0]];  // ~/Projects/pykofinder
+let sel  = ["Projects", "pykofinder", "README.md"];      // selection per column
+let focusCol = 2;
+let cursor = {};                                          // col index -> row index
+
+const finder = document.getElementById("finder");
+const trail  = document.getElementById("trail");
+const state  = { dotfiles: false, condense: true };
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Render
+   ═══════════════════════════════════════════════════════════════════════════ */
+const visibleKids = node =>
+  (node.kids || []).filter(k => state.dotfiles || !k.name.startsWith("."))
+    .sort((a,b) => (!!b.dir - !!a.dir) || a.name.localeCompare(b.name, undefined, {numeric:true}));
+
+function splitName(name) {
+  const i = name.lastIndexOf(".");
+  return (i > 0) ? [name.slice(0,i), name.slice(i)] : [name, ""];
+}
+
+function measure(node) {
+  /* content-driven width, clamped — no manual resizing, no wasted space */
+  const c = document.createElement("canvas").getContext("2d");
+  const cs = getComputedStyle(document.documentElement);
+  c.font = `${cs.getPropertyValue("--fs-row").trim()} ${cs.getPropertyValue("--font")}`;
+  let w = 0;
+  for (const k of visibleKids(node)) w = Math.max(w, c.measureText(k.name).width);
+  c.font = `600 ${cs.getPropertyValue("--fs-head").trim()} ${cs.getPropertyValue("--font")}`;
+  w = Math.max(w, c.measureText(node.name).width + 34);
+  return Math.min(268, Math.max(148, Math.ceil(w) + 62));
+}
+
+function render() {
+  finder.querySelectorAll(".col, #preview").forEach(e => e.remove());
+
+  const previewNode = (() => {
+    const last = path[path.length - 1];
+    const s = sel[path.length - 1];
+    const n = s && (last.kids || []).find(k => k.name === s);
+    return (n && !n.dir) ? n : null;
+  })();
+
+  /* --- budget check: do we need to condense ancestors into spines? ------- */
+  const gap = parseInt(getComputedStyle(document.documentElement).getPropertyValue("--gutter"));
+  const widths = path.map(measure);
+  const PREVIEW_MIN = Math.max(300, Math.round(window.innerWidth * 0.3));
+  let budget = finder.clientWidth - gap * (path.length + 1) - PREVIEW_MIN;
+  const spineSet = new Set();
+  if (state.condense) {
+    let i = 0;
+    while (widths.reduce((a,b,k) => a + (spineSet.has(k) ? 30 : b), 0) > budget && i < path.length - 2) {
+      spineSet.add(i++);
+    }
+  }
+
+  path.forEach((node, i) => {
+    const col = document.createElement("div");
+    col.className = "col " + (i < focusCol ? "ancestor" : i > focusCol ? "descendant" : "focus");
+    col.dataset.depth = Math.min(5, Math.max(0, focusCol - i));
+    col.dataset.i = i;
+    col.style.width = widths[i] + "px";
+
+    const kids = visibleKids(node);
+    col.innerHTML = `
+      <div class="col-head">
+        <span class="name"><span>${node.name}</span></span>
+        <span class="count">${kids.length}</span>
+      </div>
+      <div class="col-body"></div>
+      <div class="spine-label" title="${node.name} — click to expand">
+        <span class="dot">${sel[i] ? iconFor(kids.find(k => k.name === sel[i]) || {name: sel[i]}) : ""}</span>
+        <span class="txt">${node.name}</span>
+      </div>`;
+
+    if (spineSet.has(i)) {
+      col.classList.add("spine");
+      col.onclick = () => { focusCol = i; state.condense = false; syncTools(); render(); };
+    }
+
+    const body = col.querySelector(".col-body");
+    kids.forEach((k, ri) => {
+      const [stem, ext] = splitName(k.name);
+      const row = document.createElement("div");
+      row.className = "row"
+        + (sel[i] === k.name ? " sel" : "")
+        + (k.name.startsWith(".") ? " dotfile" : "")
+        + (i === focusCol && cursor[i] === ri ? " cursor" : "");
+      row.innerHTML =
+        `<span class="ico">${iconFor(k)}</span>` +
+        `<span class="label">${stem}<span class="dim">${ext}</span></span>` +
+        (k.dir ? `<span class="chev">›</span>` : "");
+      row.onclick = () => { choose(i, k, ri); };
+      body.appendChild(row);
+    });
+
+    body.onscroll = () => paintTrail();
+    finder.appendChild(col);
+    col.classList.toggle("scrollable-down",
+      body.scrollHeight > body.clientHeight + 4);
+  });
+
+  /* --- preview ---------------------------------------------------------- */
+  const pv = document.createElement("div");
+  pv.id = "preview";
+  if (previewNode) {
+    const [stem, ext] = splitName(previewNode.name);
+    pv.innerHTML = `
+      <div class="col-head"><span class="name"><span>${previewNode.name}</span></span></div>
+      <div class="pv-body">
+        <div class="pv-hero">
+          <span class="big">${iconFor(previewNode)}</span>
+          <div><h2>${stem}<span style="color:var(--ink-3)">${ext}</span></h2>
+               <div class="sub">${previewNode.size} · modified ${previewNode.mod}</div></div>
+        </div>
+        <p>This pane is unchanged from today's Pykoclaw — the study is about the
+           columns to its left. Preview content renders here for Markdown, PDF,
+           DOCX, images and source, exactly as <code>preview.py</code> does now.</p>
+        <dl class="meta">
+          <dt>Where</dt><dd>${path.map(p=>p.name).join(" / ")}</dd>
+          <dt>Size</dt><dd>${previewNode.size}</dd>
+          <dt>Modified</dt><dd>${previewNode.mod}</dd>
+        </dl>
+      </div>`;
+  } else {
+    pv.innerHTML = `<div class="pv-empty"><div class="glyph">◫</div>
+                    <div>Select a file to preview</div></div>`;
+  }
+  finder.appendChild(pv);
+
+  renderCrumbs();
+  document.getElementById("st-path").textContent =
+    path.map(p => p.name).join(" / ") + (sel[path.length-1] ? " / " + sel[path.length-1] : "");
+  requestAnimationFrame(paintTrail);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   The trail: an elbow from each selected row into the next column's header.
+   This is the whole idea — the path you took is drawn, not inferred.
+   ═══════════════════════════════════════════════════════════════════════════ */
+function paintTrail() {
+  const fr = finder.getBoundingClientRect();
+  trail.setAttribute("viewBox", `0 0 ${fr.width} ${fr.height}`);
+  trail.style.width = fr.width + "px"; trail.style.height = fr.height + "px";
+  let out = "";
+
+  const cols = [...finder.querySelectorAll(".col")];
+  cols.forEach((col, i) => {
+    const next = cols[i + 1] || document.getElementById("preview");
+    if (!next) return;
+    const selRow = col.querySelector(".row.sel");
+    const cr = col.getBoundingClientRect(), nr = next.getBoundingClientRect();
+
+    /* start point: right edge of the selected pill (or the spine dot) */
+    let x1, y1;
+    if (col.classList.contains("spine")) {
+      const dot = col.querySelector(".dot").getBoundingClientRect();
+      x1 = cr.right - fr.left; y1 = dot.top + dot.height/2 - fr.top;
+    } else if (selRow) {
+      const rr = selRow.getBoundingClientRect();
+      /* clip to the visible body so a scrolled-away row doesn't draw outside */
+      const br = col.querySelector(".col-body").getBoundingClientRect();
+      let cy = rr.top + rr.height/2;
+      if (cy < br.top + 2 || cy > br.bottom - 2) return;
+      x1 = rr.right - fr.left; y1 = cy - fr.top;
+    } else return;
+
+    /* end point: the next column's header — or its spine dot when folded */
+    const anchor = next.classList.contains("spine")
+      ? next.querySelector(".dot") : next.querySelector(".col-head");
+    const ar = anchor && anchor.getBoundingClientRect();
+    const y2 = ar ? ar.top + ar.height/2 - fr.top : nr.top + 15 - fr.top;
+    const x2 = nr.left - fr.left;
+
+    const mx = x1 + (x2 - x1) / 2, r = Math.min(7, Math.abs(y2 - y1) / 2, (x2-x1)/2);
+    const s = Math.sign(y2 - y1) || 1;
+    const dpath = (Math.abs(y2 - y1) < 1)
+      ? `M${x1},${y1} L${x2},${y2}`
+      : `M${x1},${y1} L${mx - r},${y1} Q${mx},${y1} ${mx},${y1 + s*r}` +
+        ` L${mx},${y2 - s*r} Q${mx},${y2} ${mx + r},${y2} L${x2},${y2}`;
+
+    const active = +col.dataset.i === focusCol;
+    out += `<path class="${active ? "" : "thread"}" d="${dpath}"/>`;
+  });
+  trail.innerHTML = out;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Navigation
+   ═══════════════════════════════════════════════════════════════════════════ */
+function choose(colIdx, node, rowIdx) {
+  path = path.slice(0, colIdx + 1);
+  sel  = sel.slice(0, colIdx);
+  sel[colIdx] = node.name;
+  cursor = {}; cursor[colIdx] = rowIdx;
+  focusCol = colIdx;
+  if (node.dir) { path.push(node); focusCol = colIdx + 1; cursor[colIdx+1] = 0; }
+  render();
+}
+
+function renderCrumbs() {
+  const el = document.getElementById("crumbs");
+  el.innerHTML = "";
+  path.forEach((p, i) => {
+    if (i) el.insertAdjacentHTML("beforeend", `<span class="crumb-sep">›</span>`);
+    const b = document.createElement("span");
+    b.className = "crumb" + (i === path.length - 1 ? " here" : "");
+    b.textContent = p.name;
+    b.onclick = () => { path = path.slice(0, i+1); sel = sel.slice(0, i); focusCol = i; render(); };
+    el.appendChild(b);
+  });
+}
+
+document.addEventListener("keydown", e => {
+  const col = finder.querySelector(`.col[data-i="${focusCol}"]`);
+  if (!col) return;
+  const rows = [...col.querySelectorAll(".row")];
+  let ci = cursor[focusCol] ?? rows.findIndex(r => r.classList.contains("sel"));
+  if (ci < 0) ci = 0;
+
+  if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+    e.preventDefault();
+    ci = Math.max(0, Math.min(rows.length - 1, ci + (e.key === "ArrowDown" ? 1 : -1)));
+    rows[ci].click();
+    finder.querySelector(`.col[data-i="${focusCol}"] .row.cursor`)
+      ?.scrollIntoView({ block: "nearest" });
+  } else if (e.key === "ArrowRight" || e.key === "Enter") {
+    e.preventDefault();
+    const nxt = finder.querySelector(`.col[data-i="${focusCol + 1}"]`);
+    if (nxt) { focusCol++; cursor[focusCol] = cursor[focusCol] ?? 0;
+               const r = nxt.querySelectorAll(".row")[cursor[focusCol]]; r && r.click(); }
+  } else if (e.key === "ArrowLeft") {
+    e.preventDefault();
+    if (focusCol > 0) { focusCol--; render(); }
+  }
+});
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Toolbar
+   ═══════════════════════════════════════════════════════════════════════════ */
+const root = document.documentElement;
+function syncTools() {
+  document.getElementById("t-dot").setAttribute("aria-pressed", state.dotfiles);
+  document.getElementById("t-condense").setAttribute("aria-pressed", state.condense);
+  document.getElementById("t-density").textContent =
+    root.dataset.density === "compact" ? "Compact" : "Comfortable";
+  document.getElementById("t-theme").textContent =
+    root.dataset.theme === "dark" ? "◑ Light" : "◐ Dark";
+}
+document.getElementById("t-dot").onclick = () => { state.dotfiles = !state.dotfiles; syncTools(); render(); };
+document.getElementById("t-condense").onclick = () => { state.condense = !state.condense; syncTools(); render(); };
+document.getElementById("t-density").onclick = () => {
+  root.dataset.density = root.dataset.density === "compact" ? "comfortable" : "compact";
+  syncTools(); render();
+};
+document.getElementById("t-theme").onclick = () => {
+  root.dataset.theme = root.dataset.theme === "dark" ? "light" : "dark";
+  syncTools(); requestAnimationFrame(paintTrail);
+};
+addEventListener("resize", render);
+
+syncTools();
+render();
+</script>
+</body>
+</html>
