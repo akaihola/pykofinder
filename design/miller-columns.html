@@ -1,28 +1,36 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="light" data-density="comfortable">
+<html lang="en" data-theme="light" data-density="compact">
 <head>
 <meta charset="utf-8">
 <title>Pykoclaw — Miller Columns design study</title>
+<script src="vendor/seti-map.js"></script>
 <style>
 /* ═══════════════════════════════════════════════════════════════════════════
    PYKOCLAW MILLER COLUMNS — "Trail"
    Design tokens. Everything downstream is derived from these.
    ═══════════════════════════════════════════════════════════════════════════ */
+@font-face {
+  font-family: "seti";
+  src: url("vendor/seti.woff") format("woff");
+  font-display: block;
+}
+
 :root {
   --font: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", "Helvetica Neue", sans-serif;
   --mono: "SF Mono", "JetBrains Mono", "Fira Code", ui-monospace, monospace;
 
-  --fs-row: 13px;
+  --fs-row: 12px;
   --fs-head: 12px;
   --fs-meta: 11px;
 
   /* density-driven */
-  --row-h: 26px;
+  --row-h: 21px;
   --row-gap: 1px;
-  --head-h: 30px;
-  --col-pad: 5px;      /* inset gutter each side of a row */
-  --gutter: 13px;      /* space between columns — where the trail lives */
-  --radius: 7px;
+  --head-h: 26px;
+  --col-pad: 4px;      /* inset gutter each side of a row */
+  --gutter: 10px;      /* space between columns — where the trail lives */
+  --radius: 5px;
+  --spine-w: 34px;
 
   /* light palette */
   --accent:        #2f6df6;
@@ -44,9 +52,9 @@
   --recede-amt:    3.2%;      /* per-level recession */
 }
 
-:root[data-density="compact"] {
-  --row-h: 21px; --head-h: 26px; --fs-row: 12px; --radius: 5px;
-  --col-pad: 4px; --gutter: 10px;
+:root[data-density="comfortable"] {
+  --row-h: 26px; --head-h: 30px; --fs-row: 13px; --radius: 7px;
+  --col-pad: 5px; --gutter: 13px;
 }
 
 :root[data-theme="dark"] {
@@ -80,7 +88,7 @@ body {
 /* ── Breadcrumb / toolbar ──────────────────────────────────────────────── */
 #bar {
   flex: 0 0 auto; display: flex; align-items: center; gap: 2px;
-  height: 38px; padding: 0 10px;
+  height: 36px; padding: 0 8px 0 10px;
   background: color-mix(in srgb, var(--chrome) 70%, var(--surface));
   border-bottom: 1px solid var(--hairline);
   font-size: var(--fs-head);
@@ -88,37 +96,75 @@ body {
 #crumbs { display: flex; align-items: center; gap: 1px; min-width: 0; overflow: hidden; }
 .crumb {
   padding: 3px 7px; border-radius: 5px; color: var(--ink-2); cursor: pointer;
-  white-space: nowrap; border: 1px solid transparent;
+  white-space: nowrap;
 }
 .crumb:hover { background: var(--hover); color: var(--ink); }
 .crumb.here { color: var(--ink); font-weight: 590; }
 .crumb-sep { color: var(--ink-3); opacity: .55; user-select: none; }
 .spacer { flex: 1; }
 
-.tool {
-  font: inherit; font-size: var(--fs-meta); color: var(--ink-2);
-  background: transparent; border: 1px solid transparent;
-  border-radius: 6px; padding: 4px 8px; cursor: pointer; white-space: nowrap;
+/* ── Settings popover ──────────────────────────────────────────────────── */
+#gear {
+  font: inherit; font-size: 14px; line-height: 1; color: var(--ink-2);
+  background: transparent; border: 0; border-radius: 6px;
+  width: 26px; height: 24px; cursor: pointer;
 }
-.tool:hover { background: var(--hover); color: var(--ink); }
-.tool[aria-pressed="true"] {
-  background: var(--accent); border-color: var(--accent); color: #fff;
+#gear:hover, #gear[aria-expanded="true"] { background: var(--hover); color: var(--ink); }
+#settings {
+  position: absolute; top: 34px; right: 8px; z-index: 40; min-width: 210px;
+  padding: 5px; border-radius: 9px;
+  background: var(--surface); color: var(--ink);
+  border: 1px solid var(--hairline);
+  box-shadow: 0 8px 28px rgba(0,0,0,.18), 0 0 0 .5px rgba(0,0,0,.06);
 }
-.tool.mono { font-family: var(--mono); }
-#bar .sep { width: 1px; height: 18px; background: var(--hairline-2); margin: 0 6px; }
+#settings[hidden] { display: none; }
+#settings .grp {
+  padding: 6px 9px 3px; font-size: 10px; letter-spacing: .5px;
+  text-transform: uppercase; color: var(--ink-3);
+}
+#settings button {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  font: inherit; font-size: var(--fs-head); text-align: left; color: inherit;
+  background: transparent; border: 0; border-radius: 6px;
+  padding: 5px 9px; cursor: pointer;
+}
+#settings button:hover { background: var(--hover); }
+#settings button .tick { width: 13px; color: var(--accent); opacity: 0; }
+#settings button[aria-checked="true"] .tick { opacity: 1; }
+#settings hr { border: 0; border-top: 1px solid var(--hairline); margin: 5px 4px; }
 
-/* ── Finder: the column strip ──────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════════════════════
+   Horizontal scroll = condensing control.
+   #finder scrolls; #rail supplies the scroll range; #stage sticks to the
+   viewport so nothing actually translates — the scroll position is read as a
+   0–100% dial that folds columns from the left.
+   ═══════════════════════════════════════════════════════════════════════════ */
 #finder {
-  position: relative; flex: 1; min-height: 0;
-  display: flex; align-items: stretch;
-  padding: var(--gutter); gap: var(--gutter);
-  overflow: hidden;
+  flex: 1; min-height: 0; overflow-x: auto; overflow-y: hidden;
+  scrollbar-width: thin; scrollbar-color: var(--hairline-2) transparent;
+}
+#finder::-webkit-scrollbar { height: 9px; }
+#finder::-webkit-scrollbar-thumb {
+  background: var(--hairline-2); border-radius: 5px;
+  border: 2px solid transparent; background-clip: content-box;
+}
+#rail { height: 100%; }
+#stage {
+  position: sticky; left: 0; height: 100%;
+  width: var(--stage-w, 100%); overflow: hidden;
+}
+#strip {
+  display: flex; align-items: stretch; height: 100%; gap: var(--gutter);
+  padding: var(--gutter);
+  /* overflow the stage when the columns don't fit, stretch to it when they do
+     — the latter is what lets #preview's flex-grow claim the spare space */
+  width: max-content; min-width: 100%;
+  will-change: transform;
 }
 
 /* the trail overlay is painted between columns */
 #trail {
-  position: absolute; inset: 0; pointer-events: none; z-index: 3;
-  overflow: visible;
+  position: absolute; inset: 0; pointer-events: none; z-index: 3; overflow: visible;
 }
 #trail path { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linecap: round; }
 #trail path.thread { stroke: var(--accent-soft); }
@@ -130,7 +176,7 @@ body {
   border-radius: 10px;
   background: var(--surface);
   box-shadow: var(--shadow-col);
-  transition: width .18s cubic-bezier(.2,.7,.3,1), background-color .18s;
+  transition: background-color .18s;   /* NOT width: folding tracks the scroll 1:1 */
 }
 /* Depth recession: ancestors sink toward the chrome, focus stays bright. */
 .col[data-depth="1"] { background: color-mix(in srgb, var(--surface) calc(100% - 1 * var(--recede-amt)), var(--recede)); }
@@ -143,12 +189,10 @@ body {
 .col-head {
   flex: 0 0 auto; height: var(--head-h);
   display: flex; align-items: center; gap: 6px;
-  padding: 0 10px; border-bottom: 1px solid var(--hairline);
+  padding: 0 9px; border-bottom: 1px solid var(--hairline);
   border-radius: 10px 10px 0 0;
   font-size: var(--fs-head); font-weight: 590; color: var(--ink-2);
   white-space: nowrap; overflow: hidden;
-  background: linear-gradient(to bottom,
-              color-mix(in srgb, currentColor 4%, transparent), transparent);
 }
 .col-head .name {
   overflow: hidden; text-overflow: ellipsis; direction: rtl; text-align: left;
@@ -160,15 +204,15 @@ body {
 }
 .col.focus .col-head { color: var(--ink); }
 .col.focus .col-head::after {
-  content: ""; position: absolute; left: 10px; right: 10px;
-  top: calc(var(--head-h) - 1px); height: 2px; border-radius: 2px;
+  content: ""; position: absolute; left: 9px; right: 9px;
+  top: calc(var(--head-h) - 2px); height: 2px; border-radius: 2px;
   background: var(--accent);
 }
 
-/* Scroll body + edge fades so a long list never looks truncated by accident */
+/* Scroll body + edge fade so a long list never looks truncated by accident */
 .col-body {
   flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden;
-  padding: var(--col-pad) 0 var(--col-pad);
+  padding: var(--col-pad) 0;
   scrollbar-width: thin; scrollbar-color: var(--hairline-2) transparent;
 }
 .col-body::-webkit-scrollbar { width: 8px; }
@@ -188,19 +232,11 @@ body {
 .row {
   display: flex; align-items: center; gap: 7px;
   height: var(--row-h); margin: var(--row-gap) var(--col-pad);
-  padding: 0 6px 0 7px; border-radius: var(--radius);
+  padding: 0 6px 0 6px; border-radius: var(--radius);
   cursor: default; user-select: none; white-space: nowrap;
-  border: 1px solid transparent;
-  position: relative;
+  border: 1px solid transparent; position: relative;
 }
-.row .ico {
-  flex: 0 0 16px; width: 16px; text-align: center;
-  font-size: 13px; line-height: 1;
-  filter: saturate(.8);
-}
-.row .label {
-  flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis;
-}
+.row .label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .row .label .dim { color: var(--ink-3); }   /* extension is de-emphasised */
 .row .chev {
   flex: 0 0 auto; color: var(--ink-3); font-size: 11px; opacity: .7;
@@ -209,37 +245,42 @@ body {
 .row.dotfile { opacity: .5; }
 .row:hover:not(.sel) { background: var(--hover); }
 
+/* ── Icons: Seti glyph for files, drawn folder for directories ─────────── */
+.ico {
+  flex: 0 0 16px; width: 16px; height: 16px;
+  display: grid; place-items: center; line-height: 1;
+}
+.ico.seti { font-family: "seti"; font-size: 14px; }
+.ico.dir svg { width: 14px; height: 14px; fill: var(--ink-3); }
+
 /* Three distinct selection states — all legible, unlike Finder's grey-out. */
 /* 1. FOCUS column: solid accent — "you are here". */
-.col.focus .row.sel {
-  background: var(--accent); color: #fff;
-}
+.col.focus .row.sel { background: var(--accent); color: #fff; }
 .col.focus .row.sel .chev,
 .col.focus .row.sel .label .dim { color: rgba(255,255,255,.72); }
-.col.focus .row.sel .ico { filter: none; }
+.col.focus .row.sel .ico.seti { color: #fff !important; }
+.col.focus .row.sel .ico.dir svg { fill: #fff; }
 
-/* 2. ANCESTOR columns: outlined pill — "the trail you walked". */
+/* 2. ANCESTOR columns: tinted pill — "the trail you walked". */
 .col.ancestor .row.sel {
-  background: var(--accent-weak);
-  border-color: var(--accent-soft);
+  background: var(--accent-weak); border-color: var(--accent-soft);
   color: var(--accent-ink); font-weight: 560;
 }
 .col.ancestor .row.sel .chev { color: var(--accent-soft); }
+.col.ancestor .row.sel .ico.dir svg { fill: var(--accent); }
 
 /* 3. DESCENDANT columns: ghost pill — "remembered, not active". */
 .col.descendant .row.sel {
-  background: transparent;
-  border-color: var(--hairline-2);
-  border-style: dashed;
-  color: var(--ink-2);
+  background: transparent; border-color: var(--hairline-2);
+  border-style: dashed; color: var(--ink-2);
 }
 
 /* keyboard cursor ring, independent of selection */
 .row.cursor { box-shadow: 0 0 0 2px var(--accent), 0 0 0 4px var(--accent-weak); }
 .col.focus .row.cursor.sel { box-shadow: none; }
 
-/* ── Condensed ancestor spines (the space-saving trick Finder lacks) ────── */
-.col.spine { width: 34px !important; min-width: 34px; cursor: pointer; }
+/* ── Folded ancestor spines ────────────────────────────────────────────── */
+.col.spine { width: var(--spine-w) !important; cursor: pointer; }
 .col.spine .col-head, .col.spine .col-body { display: none; }
 .col.spine .spine-label {
   display: flex; flex-direction: column; align-items: center;
@@ -248,8 +289,8 @@ body {
 .col:not(.spine) .spine-label { display: none; }
 /* the chosen child stays visible even when its column is folded away */
 .spine-label .dot {
-  flex: 0 0 auto; width: 18px; height: 18px; border-radius: 50%;
-  display: grid; place-items: center; font-size: 11px;
+  flex: 0 0 auto; width: 20px; height: 20px; border-radius: 50%;
+  display: grid; place-items: center;
   background: var(--accent-weak); box-shadow: inset 0 0 0 1px var(--accent-soft);
 }
 .spine-label .txt {
@@ -261,18 +302,20 @@ body {
 .col.spine:hover .txt { color: var(--ink); }
 
 /* ── Preview pane ──────────────────────────────────────────────────────── */
+/* grow into spare space, never shrink below the target reading width */
 #preview {
-  flex: 1 1 0; min-width: 260px; border-radius: 10px;
+  flex: 1 0 var(--preview-w, 520px); border-radius: 10px;
   background: var(--surface-2); box-shadow: var(--shadow-col);
   display: flex; flex-direction: column; min-height: 0; overflow: hidden;
 }
-#preview .col-head { border-radius: 10px 10px 0 0; }
 #preview .pv-body { flex: 1; min-height: 0; overflow: auto; padding: 22px 26px; }
 .pv-hero {
   display: flex; align-items: center; gap: 14px; margin-bottom: 18px;
   padding-bottom: 16px; border-bottom: 1px solid var(--hairline);
 }
-.pv-hero .big { font-size: 40px; line-height: 1; }
+.pv-hero .ico { width: 42px; height: 42px; flex-basis: 42px; }
+.pv-hero .ico.seti { font-size: 38px; }
+.pv-hero .ico.dir svg { width: 38px; height: 38px; }
 .pv-hero h2 { margin: 0 0 3px; font-size: 16px; font-weight: 600; }
 .pv-hero .sub { color: var(--ink-3); font-size: var(--fs-meta); }
 .pv-body p { color: var(--ink-2); line-height: 1.65; max-width: 62ch; }
@@ -299,6 +342,7 @@ body {
   font-family: var(--mono); font-size: 10px; padding: 1px 4px; border-radius: 3px;
   border: 1px solid var(--hairline-2); color: var(--ink-2);
 }
+#st-fold { color: var(--ink-2); }
 </style>
 </head>
 <body>
@@ -306,24 +350,34 @@ body {
   <div id="bar">
     <div id="crumbs"></div>
     <div class="spacer"></div>
-    <button class="tool mono" id="t-dot" aria-pressed="false" title="Show dotfiles">.*</button>
-    <div class="sep"></div>
-    <button class="tool" id="t-density" title="Row density">Comfortable</button>
-    <button class="tool" id="t-condense" aria-pressed="true" title="Condense distant columns to spines">Condense</button>
-    <button class="tool" id="t-theme" title="Light / dark">◐ Dark</button>
+    <button id="gear" aria-expanded="false" title="Settings">⚙</button>
+    <div id="settings" hidden>
+      <div class="grp">View</div>
+      <button id="s-dot"     role="menuitemcheckbox" aria-checked="false"><span class="tick">✓</span>Show dotfiles</button>
+      <button id="s-density" role="menuitemcheckbox" aria-checked="true"><span class="tick">✓</span>Compact rows</button>
+      <hr>
+      <div class="grp">Appearance</div>
+      <button id="s-theme"   role="menuitemcheckbox" aria-checked="false"><span class="tick">✓</span>Dark theme</button>
+    </div>
   </div>
 
   <div id="finder">
-    <svg id="trail"></svg>
-    <!-- columns injected here -->
+    <div id="rail">
+      <div id="stage">
+        <svg id="trail"></svg>
+        <div id="strip"><!-- columns + preview injected here --></div>
+      </div>
+    </div>
   </div>
 
   <div id="status">
     <span id="st-path"></span>
     <div class="spacer"></div>
+    <span id="st-fold"></span>
     <span><kbd>↑</kbd><kbd>↓</kbd> move</span>
     <span><kbd>→</kbd> open</span>
     <span><kbd>←</kbd> back</span>
+    <span><kbd>⇧</kbd>+wheel fold</span>
   </div>
 </div>
 
@@ -349,6 +403,7 @@ const TREE = d("~", [
         f("rendering.py","9 KB","9 Aug 2026"), f("styles.py","34 KB","16 Aug 2026"),
         f("vfs.py","2.8 KB","1 Aug 2026"),
         d("providers", [ f("csv_provider.py","3 KB","1 Aug 2026"), f("json_provider.py","4 KB","1 Aug 2026"), f("sqlite.py","8 KB","1 Aug 2026") ]),
+        d("static", [ f("manifest.json","1 KB","3 Aug 2026"), f("sw.js","2 KB","3 Aug 2026") ]),
       ])]),
       d("tests", [ f("test_columns.py","6 KB","15 Aug 2026"), f("test_preview.py","12 KB","9 Aug 2026"), f("test_browser_keyboard.py","5 KB","12 Aug 2026") ]),
       d("lmt", [ f("01-foundation.md","3 KB","7 Aug 2026"), f("02-styles.md","13 KB","7 Aug 2026"), f("04-columns.md","14 KB","7 Aug 2026") ]),
@@ -357,6 +412,7 @@ const TREE = d("~", [
       f("ISSUES.md","17.7 KB","16 Aug 2026"),
       f("README.md","4.0 KB","14 Aug 2026"),
       f("pyproject.toml","811 B","6 Aug 2026"),
+      f("uv.lock","189 KB","16 Aug 2026"),
       f("catalogue.db","2.4 MB","16 Aug 2026"),
     ]),
     d("nixos-config", [ f("flake.nix","3 KB","4 Aug 2026"), d("home-manager", [ f("default.nix","9 KB","4 Aug 2026") ]) ]),
@@ -372,96 +428,103 @@ const TREE = d("~", [
   f("TODO.md","1.2 KB","16 Aug 2026"),
 ]);
 
-/* icons: folders get a tinted glyph, files get a type glyph */
-const ICON = {
-  dir: "📁", md: "📝", pdf: "📑", py: "🐍", db: "🗄", png: "🖼", jpg: "🖼",
-  toml: "⚙", nix: "❄", xlsx: "📊", csv: "📊", zip: "🗜", gz: "🗜", json: "⛁",
-  txt: "📄", desktop: "🔗",
-};
-const iconFor = n => n.dir ? ICON.dir : (ICON[n.name.split(".").pop().toLowerCase()] || "📄");
+/* ═══════════════════════════════════════════════════════════════════════════
+   Icons — Seti UI font (MIT), extension map generated by build-seti-map.py.
+   A handful of extensions Seti has glyphs for but never mapped.
+   ═══════════════════════════════════════════════════════════════════════════ */
+/* Seti has glyphs for these but mapping.less never binds them to an extension. */
+const SUPP = { nix: ["e019","#519aba"], db: ["e022","#dd4b78"], sqlite: ["e022","#dd4b78"],
+               lock: ["e05d","#7fae42"], desktop: ["e019","#6d8086"] };
+const FOLDER_SVG =
+  '<svg viewBox="0 0 16 16"><path d="M1.4 3.2h4.1l1.3 1.7h7.8c.6 0 1 .4 1 1v7c0 .6-.4 1-1 1H1.4c-.6 0-1-.4-1-1V4.2c0-.6.4-1 1-1z"/></svg>';
+
+function iconHTML(node) {
+  if (node.dir) return `<span class="ico dir">${FOLDER_SVG}</span>`;
+  const lower = node.name.toLowerCase(), ext = lower.split(".").pop();
+  const e = SETI.name[lower] || SETI.ext[ext] || SUPP[ext] || SETI.default;
+  const color = (root.dataset.theme === "light" && SETI.light[ext]) || e[1];
+  return `<span class="ico seti" style="color:${color}">&#x${e[0]};</span>`;
+}
 
 /* ═══════════════════════════════════════════════════════════════════════════
    State
    ═══════════════════════════════════════════════════════════════════════════ */
+const root    = document.documentElement;
+const finder  = document.getElementById("finder");
+const rail    = document.getElementById("rail");
+const stage   = document.getElementById("stage");
+const strip   = document.getElementById("strip");
+const trail   = document.getElementById("trail");
+
 let path = [TREE, TREE.kids[1], TREE.kids[1].kids[0]];  // ~/Projects/pykofinder
 let sel  = ["Projects", "pykofinder", "README.md"];      // selection per column
 let focusCol = 2;
-let cursor = {};                                          // col index -> row index
+let cursor = {};                                         // col index -> row index
+let widths = [];                                         // natural width per column
+let folded = 0;                                          // columns currently folded
+const state = { dotfiles: false };
 
-const finder = document.getElementById("finder");
-const trail  = document.getElementById("trail");
-const state  = { dotfiles: false, condense: true };
+const GUTTER = () => parseInt(getComputedStyle(root).getPropertyValue("--gutter"));
+const SPINE  = () => parseInt(getComputedStyle(root).getPropertyValue("--spine-w"));
 
-/* ═══════════════════════════════════════════════════════════════════════════
-   Render
-   ═══════════════════════════════════════════════════════════════════════════ */
 const visibleKids = node =>
   (node.kids || []).filter(k => state.dotfiles || !k.name.startsWith("."))
     .sort((a,b) => (!!b.dir - !!a.dir) || a.name.localeCompare(b.name, undefined, {numeric:true}));
 
-function splitName(name) {
+const splitName = name => {
   const i = name.lastIndexOf(".");
   return (i > 0) ? [name.slice(0,i), name.slice(i)] : [name, ""];
-}
+};
+
+const previewNode = () => {
+  const last = path[path.length - 1], s = sel[path.length - 1];
+  const n = s && (last.kids || []).find(k => k.name === s);
+  return (n && !n.dir) ? n : null;
+};
+
+/* target reading width for the preview — the thing scrolling tries to protect */
+const previewTarget = () => previewNode()
+  ? Math.min(760, Math.max(420, Math.round(stage.clientWidth * 0.45)))
+  : 300;
 
 function measure(node) {
   /* content-driven width, clamped — no manual resizing, no wasted space */
-  const c = document.createElement("canvas").getContext("2d");
-  const cs = getComputedStyle(document.documentElement);
+  const c = (measure._c ||= document.createElement("canvas").getContext("2d"));
+  const cs = getComputedStyle(root);
   c.font = `${cs.getPropertyValue("--fs-row").trim()} ${cs.getPropertyValue("--font")}`;
   let w = 0;
   for (const k of visibleKids(node)) w = Math.max(w, c.measureText(k.name).width);
   c.font = `600 ${cs.getPropertyValue("--fs-head").trim()} ${cs.getPropertyValue("--font")}`;
   w = Math.max(w, c.measureText(node.name).width + 34);
-  return Math.min(268, Math.max(148, Math.ceil(w) + 62));
+  return Math.min(268, Math.max(148, Math.ceil(w) + 58));
 }
 
-function render() {
-  finder.querySelectorAll(".col, #preview").forEach(e => e.remove());
-
-  const previewNode = (() => {
-    const last = path[path.length - 1];
-    const s = sel[path.length - 1];
-    const n = s && (last.kids || []).find(k => k.name === s);
-    return (n && !n.dir) ? n : null;
-  })();
-
-  /* --- budget check: do we need to condense ancestors into spines? ------- */
-  const gap = parseInt(getComputedStyle(document.documentElement).getPropertyValue("--gutter"));
-  const widths = path.map(measure);
-  const PREVIEW_MIN = Math.max(300, Math.round(window.innerWidth * 0.3));
-  let budget = finder.clientWidth - gap * (path.length + 1) - PREVIEW_MIN;
-  const spineSet = new Set();
-  if (state.condense) {
-    let i = 0;
-    while (widths.reduce((a,b,k) => a + (spineSet.has(k) ? 30 : b), 0) > budget && i < path.length - 2) {
-      spineSet.add(i++);
-    }
-  }
+/* ═══════════════════════════════════════════════════════════════════════════
+   Render
+   ═══════════════════════════════════════════════════════════════════════════ */
+function render(keepScroll) {
+  strip.textContent = "";
+  widths = path.map(measure);
 
   path.forEach((node, i) => {
+    const kids = visibleKids(node);
     const col = document.createElement("div");
     col.className = "col " + (i < focusCol ? "ancestor" : i > focusCol ? "descendant" : "focus");
     col.dataset.depth = Math.min(5, Math.max(0, focusCol - i));
     col.dataset.i = i;
     col.style.width = widths[i] + "px";
 
-    const kids = visibleKids(node);
+    const chosen = kids.find(k => k.name === sel[i]);
     col.innerHTML = `
       <div class="col-head">
         <span class="name"><span>${node.name}</span></span>
         <span class="count">${kids.length}</span>
       </div>
       <div class="col-body"></div>
-      <div class="spine-label" title="${node.name} — click to expand">
-        <span class="dot">${sel[i] ? iconFor(kids.find(k => k.name === sel[i]) || {name: sel[i]}) : ""}</span>
+      <div class="spine-label" title="${node.name} — click to unfold">
+        <span class="dot">${chosen ? iconHTML(chosen) : ""}</span>
         <span class="txt">${node.name}</span>
       </div>`;
-
-    if (spineSet.has(i)) {
-      col.classList.add("spine");
-      col.onclick = () => { focusCol = i; state.condense = false; syncTools(); render(); };
-    }
 
     const body = col.querySelector(".col-body");
     kids.forEach((k, ri) => {
@@ -471,101 +534,163 @@ function render() {
         + (sel[i] === k.name ? " sel" : "")
         + (k.name.startsWith(".") ? " dotfile" : "")
         + (i === focusCol && cursor[i] === ri ? " cursor" : "");
-      row.innerHTML =
-        `<span class="ico">${iconFor(k)}</span>` +
-        `<span class="label">${stem}<span class="dim">${ext}</span></span>` +
-        (k.dir ? `<span class="chev">›</span>` : "");
-      row.onclick = () => { choose(i, k, ri); };
+      row.innerHTML = iconHTML(k)
+        + `<span class="label">${stem}<span class="dim">${ext}</span></span>`
+        + (k.dir ? `<span class="chev">›</span>` : "");
+      row.onclick = () => choose(i, k, ri);
       body.appendChild(row);
     });
+    body.onscroll = paintTrail;
 
-    body.onscroll = () => paintTrail();
-    finder.appendChild(col);
-    col.classList.toggle("scrollable-down",
-      body.scrollHeight > body.clientHeight + 4);
+    strip.appendChild(col);
+    col.classList.toggle("scrollable-down", body.scrollHeight > body.clientHeight + 4);
   });
 
-  /* --- preview ---------------------------------------------------------- */
+  strip.appendChild(renderPreview());
+  renderCrumbs();
+  layout(keepScroll);
+}
+
+function renderPreview() {
+  const n = previewNode();
   const pv = document.createElement("div");
   pv.id = "preview";
-  if (previewNode) {
-    const [stem, ext] = splitName(previewNode.name);
-    pv.innerHTML = `
-      <div class="col-head"><span class="name"><span>${previewNode.name}</span></span></div>
-      <div class="pv-body">
-        <div class="pv-hero">
-          <span class="big">${iconFor(previewNode)}</span>
-          <div><h2>${stem}<span style="color:var(--ink-3)">${ext}</span></h2>
-               <div class="sub">${previewNode.size} · modified ${previewNode.mod}</div></div>
-        </div>
-        <p>This pane is unchanged from today's Pykoclaw — the study is about the
-           columns to its left. Preview content renders here for Markdown, PDF,
-           DOCX, images and source, exactly as <code>preview.py</code> does now.</p>
-        <dl class="meta">
-          <dt>Where</dt><dd>${path.map(p=>p.name).join(" / ")}</dd>
-          <dt>Size</dt><dd>${previewNode.size}</dd>
-          <dt>Modified</dt><dd>${previewNode.mod}</dd>
-        </dl>
-      </div>`;
-  } else {
+  if (!n) {
     pv.innerHTML = `<div class="pv-empty"><div class="glyph">◫</div>
                     <div>Select a file to preview</div></div>`;
+    return pv;
   }
-  finder.appendChild(pv);
-
-  renderCrumbs();
-  document.getElementById("st-path").textContent =
-    path.map(p => p.name).join(" / ") + (sel[path.length-1] ? " / " + sel[path.length-1] : "");
-  requestAnimationFrame(paintTrail);
+  const [stem, ext] = splitName(n.name);
+  pv.innerHTML = `
+    <div class="col-head"><span class="name"><span>${n.name}</span></span></div>
+    <div class="pv-body">
+      <div class="pv-hero">
+        ${iconHTML(n)}
+        <div><h2>${stem}<span style="color:var(--ink-3)">${ext}</span></h2>
+             <div class="sub">${n.size} · modified ${n.mod}</div></div>
+      </div>
+      <p>Scroll horizontally to trade column space for preview space. At the far
+         left every column is unfolded and this pane runs off the right edge; at
+         the far right the columns are gone and the preview owns the window.
+         Everything in between folds one column at a time, from the left.</p>
+      <dl class="meta">
+        <dt>Where</dt><dd>${path.map(p => p.name).join(" / ")}</dd>
+        <dt>Size</dt><dd>${n.size}</dd>
+        <dt>Modified</dt><dd>${n.mod}</dd>
+      </dl>
+    </div>`;
+  return pv;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
+   Layout + the scroll dial
+
+   scrollLeft is not a translation — it is a 0–100% condensing dial:
+     0%       every column unfolded; preview overflows off the right edge
+     k·unit   the leftmost k columns folded to spines   (unit = 99% / ncols)
+     99%      every column folded; preview fills what is left
+     99–100%  the spine strip itself slides away; at 100% the preview is alone
+   ═══════════════════════════════════════════════════════════════════════════ */
+function stripSpan(k) {                     /* width of the column strip with k folded */
+  const g = GUTTER(), n = path.length;
+  const cols = widths.reduce((a, w, i) => a + (i < k ? SPINE() : w), 0);
+  return cols + g * (n + 1);                /* padding either side + inter-column gaps */
+}
+const foldUnit = () => 0.99 / path.length;
+const range    = () => Math.max(1, stripSpan(0) - GUTTER());
+
+function layout(keepScroll) {
+  const stageW = finder.clientWidth;
+  root.style.setProperty("--stage-w", stageW + "px");
+  root.style.setProperty("--preview-w", previewTarget() + "px");
+  rail.style.width = (stageW + range()) + "px";
+
+  if (!keepScroll) {
+    /* default: the least folding that still gives the preview its full width */
+    let k = 0;
+    while (k < path.length && stripSpan(k) + previewTarget() > stageW) k++;
+    finder.scrollLeft = Math.round(k * foldUnit() * range());
+  }
+  applyScroll();
+}
+
+function applyScroll() {
+  const max = Math.max(1, rail.clientWidth - finder.clientWidth);
+  const p = Math.min(1, finder.scrollLeft / max);
+  const n = path.length;
+
+  /* the epsilon absorbs sub-pixel scrollLeft rounding at the fold boundaries */
+  folded = Math.min(n, Math.floor(p / foldUnit() + 0.002));
+  [...strip.querySelectorAll(".col")].forEach((col, i) => {
+    const spine = i < folded;
+    col.classList.toggle("spine", spine);
+    col.style.width = spine ? "" : widths[i] + "px";
+  });
+
+  /* last 1%: slide the spine strip itself off the left edge. Widening the strip
+     by the same amount keeps the preview's flex-grow filling to the right edge. */
+  const tail  = p > 0.99 ? (p - 0.99) / 0.01 : 0;
+  const shift = tail * n * (SPINE() + GUTTER());
+  strip.style.minWidth  = (finder.clientWidth + shift) + "px";
+  strip.style.transform = `translateX(${-shift}px)`;
+
+  document.getElementById("st-fold").textContent =
+    folded ? `${folded}/${n} folded` : "";
+  paintTrail();
+}
+
+finder.addEventListener("scroll", applyScroll, { passive: true });
+addEventListener("resize", () => render());
+
+/* ═══════════════════════════════════════════════════════════════════════════
    The trail: an elbow from each selected row into the next column's header.
-   This is the whole idea — the path you took is drawn, not inferred.
+   The vertical run sits on the centre line of the gutter between the columns.
    ═══════════════════════════════════════════════════════════════════════════ */
 function paintTrail() {
-  const fr = finder.getBoundingClientRect();
+  const fr = stage.getBoundingClientRect();
   trail.setAttribute("viewBox", `0 0 ${fr.width} ${fr.height}`);
   trail.style.width = fr.width + "px"; trail.style.height = fr.height + "px";
   let out = "";
 
-  const cols = [...finder.querySelectorAll(".col")];
+  const cols = [...strip.querySelectorAll(".col")];
   cols.forEach((col, i) => {
     const next = cols[i + 1] || document.getElementById("preview");
     if (!next) return;
-    const selRow = col.querySelector(".row.sel");
     const cr = col.getBoundingClientRect(), nr = next.getBoundingClientRect();
 
-    /* start point: right edge of the selected pill (or the spine dot) */
+    /* start: right edge of the selected pill, or the spine's icon when folded */
     let x1, y1;
     if (col.classList.contains("spine")) {
       const dot = col.querySelector(".dot").getBoundingClientRect();
-      x1 = cr.right - fr.left; y1 = dot.top + dot.height/2 - fr.top;
-    } else if (selRow) {
+      x1 = cr.right - fr.left; y1 = dot.top + dot.height / 2 - fr.top;
+    } else {
+      const selRow = col.querySelector(".row.sel");
+      if (!selRow) return;
       const rr = selRow.getBoundingClientRect();
-      /* clip to the visible body so a scrolled-away row doesn't draw outside */
       const br = col.querySelector(".col-body").getBoundingClientRect();
-      let cy = rr.top + rr.height/2;
-      if (cy < br.top + 2 || cy > br.bottom - 2) return;
+      const cy = rr.top + rr.height / 2;
+      if (cy < br.top + 2 || cy > br.bottom - 2) return;   /* scrolled out of view */
       x1 = rr.right - fr.left; y1 = cy - fr.top;
-    } else return;
+    }
+    if (x1 < 0) return;   /* origin has slid off the left edge — no dangling hook */
 
-    /* end point: the next column's header — or its spine dot when folded */
+    /* end: the next column's header — or its spine icon when that one is folded */
     const anchor = next.classList.contains("spine")
       ? next.querySelector(".dot") : next.querySelector(".col-head");
     const ar = anchor && anchor.getBoundingClientRect();
-    const y2 = ar ? ar.top + ar.height/2 - fr.top : nr.top + 15 - fr.top;
     const x2 = nr.left - fr.left;
+    const y2 = ar ? ar.top + ar.height / 2 - fr.top : nr.top + 15 - fr.top;
 
-    const mx = x1 + (x2 - x1) / 2, r = Math.min(7, Math.abs(y2 - y1) / 2, (x2-x1)/2);
-    const s = Math.sign(y2 - y1) || 1;
-    const dpath = (Math.abs(y2 - y1) < 1)
+    /* the vertical run bisects the gutter, not the pill-to-column span */
+    const mx = (cr.right + nr.left) / 2 - fr.left;
+    const r  = Math.min(6, Math.abs(y2 - y1) / 2, Math.abs(mx - x1), Math.abs(x2 - mx));
+    const s  = Math.sign(y2 - y1) || 1;
+    const dp = Math.abs(y2 - y1) < 1
       ? `M${x1},${y1} L${x2},${y2}`
       : `M${x1},${y1} L${mx - r},${y1} Q${mx},${y1} ${mx},${y1 + s*r}` +
         ` L${mx},${y2 - s*r} Q${mx},${y2} ${mx + r},${y2} L${x2},${y2}`;
 
-    const active = +col.dataset.i === focusCol;
-    out += `<path class="${active ? "" : "thread"}" d="${dpath}"/>`;
+    out += `<path class="${+col.dataset.i === focusCol ? "" : "thread"}" d="${dp}"/>`;
   });
   trail.innerHTML = out;
 }
@@ -574,18 +699,25 @@ function paintTrail() {
    Navigation
    ═══════════════════════════════════════════════════════════════════════════ */
 function choose(colIdx, node, rowIdx) {
+  const col = strip.querySelector(`.col[data-i="${colIdx}"]`);
+  if (col && col.classList.contains("spine")) return unfoldTo(colIdx);
   path = path.slice(0, colIdx + 1);
   sel  = sel.slice(0, colIdx);
   sel[colIdx] = node.name;
-  cursor = {}; cursor[colIdx] = rowIdx;
+  cursor = { [colIdx]: rowIdx };
   focusCol = colIdx;
-  if (node.dir) { path.push(node); focusCol = colIdx + 1; cursor[colIdx+1] = 0; }
+  if (node.dir) { path.push(node); focusCol = colIdx + 1; cursor[focusCol] = 0; }
   render();
+}
+
+/* clicking a spine scrolls back just far enough to unfold it */
+function unfoldTo(i) {
+  finder.scrollTo({ left: Math.round(i * foldUnit() * range()), behavior: "smooth" });
 }
 
 function renderCrumbs() {
   const el = document.getElementById("crumbs");
-  el.innerHTML = "";
+  el.textContent = "";
   path.forEach((p, i) => {
     if (i) el.insertAdjacentHTML("beforeend", `<span class="crumb-sep">›</span>`);
     const b = document.createElement("span");
@@ -594,10 +726,12 @@ function renderCrumbs() {
     b.onclick = () => { path = path.slice(0, i+1); sel = sel.slice(0, i); focusCol = i; render(); };
     el.appendChild(b);
   });
+  document.getElementById("st-path").textContent =
+    path.map(p => p.name).join(" / ") + (sel[path.length-1] ? " / " + sel[path.length-1] : "");
 }
 
 document.addEventListener("keydown", e => {
-  const col = finder.querySelector(`.col[data-i="${focusCol}"]`);
+  const col = strip.querySelector(`.col[data-i="${focusCol}"]`);
   if (!col) return;
   const rows = [...col.querySelectorAll(".row")];
   let ci = cursor[focusCol] ?? rows.findIndex(r => r.classList.contains("sel"));
@@ -607,44 +741,45 @@ document.addEventListener("keydown", e => {
     e.preventDefault();
     ci = Math.max(0, Math.min(rows.length - 1, ci + (e.key === "ArrowDown" ? 1 : -1)));
     rows[ci].click();
-    finder.querySelector(`.col[data-i="${focusCol}"] .row.cursor`)
+    strip.querySelector(`.col[data-i="${focusCol}"] .row.cursor`)
       ?.scrollIntoView({ block: "nearest" });
   } else if (e.key === "ArrowRight" || e.key === "Enter") {
     e.preventDefault();
-    const nxt = finder.querySelector(`.col[data-i="${focusCol + 1}"]`);
-    if (nxt) { focusCol++; cursor[focusCol] = cursor[focusCol] ?? 0;
-               const r = nxt.querySelectorAll(".row")[cursor[focusCol]]; r && r.click(); }
+    const nxt = strip.querySelector(`.col[data-i="${focusCol + 1}"]`);
+    if (nxt) { focusCol++; cursor[focusCol] ??= 0;
+               nxt.querySelectorAll(".row")[cursor[focusCol]]?.click(); }
   } else if (e.key === "ArrowLeft") {
     e.preventDefault();
-    if (focusCol > 0) { focusCol--; render(); }
+    if (focusCol > 0) { focusCol--; if (folded > focusCol) unfoldTo(focusCol); render(true); }
+  } else if (e.key === "Escape") {
+    closeSettings();
   }
 });
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   Toolbar
+   Settings popover
    ═══════════════════════════════════════════════════════════════════════════ */
-const root = document.documentElement;
-function syncTools() {
-  document.getElementById("t-dot").setAttribute("aria-pressed", state.dotfiles);
-  document.getElementById("t-condense").setAttribute("aria-pressed", state.condense);
-  document.getElementById("t-density").textContent =
-    root.dataset.density === "compact" ? "Compact" : "Comfortable";
-  document.getElementById("t-theme").textContent =
-    root.dataset.theme === "dark" ? "◑ Light" : "◐ Dark";
-}
-document.getElementById("t-dot").onclick = () => { state.dotfiles = !state.dotfiles; syncTools(); render(); };
-document.getElementById("t-condense").onclick = () => { state.condense = !state.condense; syncTools(); render(); };
-document.getElementById("t-density").onclick = () => {
-  root.dataset.density = root.dataset.density === "compact" ? "comfortable" : "compact";
-  syncTools(); render();
+const gear = document.getElementById("gear"), panel = document.getElementById("settings");
+const closeSettings = () => { panel.hidden = true; gear.setAttribute("aria-expanded", "false"); };
+gear.onclick = e => {
+  e.stopPropagation();
+  panel.hidden = !panel.hidden;
+  gear.setAttribute("aria-expanded", String(!panel.hidden));
 };
-document.getElementById("t-theme").onclick = () => {
-  root.dataset.theme = root.dataset.theme === "dark" ? "light" : "dark";
-  syncTools(); requestAnimationFrame(paintTrail);
-};
-addEventListener("resize", render);
+document.addEventListener("click", e => { if (!panel.contains(e.target)) closeSettings(); });
 
-syncTools();
+const toggle = (id, get, set) => {
+  const b = document.getElementById(id);
+  b.onclick = () => { set(!get()); b.setAttribute("aria-checked", String(get())); render(true); };
+  b.setAttribute("aria-checked", String(get()));
+};
+toggle("s-dot",     () => state.dotfiles,                    v => state.dotfiles = v);
+toggle("s-density", () => root.dataset.density === "compact",
+                    v => root.dataset.density = v ? "compact" : "comfortable");
+toggle("s-theme",   () => root.dataset.theme === "dark",
+                    v => root.dataset.theme = v ? "dark" : "light");
+
+document.fonts.ready.then(render);
 render();
 </script>
 </body>
