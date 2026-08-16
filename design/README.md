@@ -61,7 +61,15 @@ Mechanically: `#finder` scrolls, `#rail` supplies the scroll range, and `#stage`
 number. That gives native scrollbar, trackpad and `⇧`+wheel support for free.
 Clicking a spine scrolls back just far enough to unfold it.
 
-### 2. The trail is drawn, not inferred
+### 2. The same dial is the phone layout
+
+No separate mobile mode. On a narrow window the "least folding that fits the
+preview" answer is *all of it*, so the dial opens at 100%: the columns are gone
+and the document owns the screen, with the path in the breadcrumb. Scroll left
+and the columns come back one at a time. The desktop behaviour and the phone
+behaviour are the same mechanism at different window widths.
+
+### 3. The trail is drawn, not inferred
 
 An accent elbow leaves the selected row and lands on the *next column's header* —
 solid from the focused column, a soft thread for the rest. Its vertical run sits on
@@ -72,7 +80,13 @@ brackets, but terminating on a **labelled header** instead of a bare column edge
 so the connector doesn't just point, it names its destination. When a column is
 folded, the elbow runs to its spine icon instead, so the trail survives condensing.
 
-### 3. Three selection states, all legible
+If a selected row is scrolled out of its own column, the elbow is **clamped to the
+column edge and capped with a caret** pointing the way the row went, rather than
+dropped. A missing link reads as "there is no path here", which is worse than an
+approximate one. Rendering also reveals each column's selection, so the chain
+starts out whole.
+
+### 4. Three selection states, all legible
 
 Finder has two (blue / grey), and the grey one is nearly invisible. Ours:
 
@@ -82,25 +96,25 @@ Finder has two (blue / grey), and the grey one is nearly invisible. Ours:
 | Ancestor | accent-tinted pill, accent border, accent text | "the trail you walked" |
 | Descendant | dashed hairline outline, no fill | "remembered, not active" |
 
-### 4. Depth is expressed as light
+### 5. Depth is expressed as light
 
 Each column left of the focus recedes ~3% toward the window chrome. The focused
 column is the only pure-white surface on screen. You can find your place with
 peripheral vision, before reading anything.
 
-### 5. Column headers
+### 6. Column headers
 
 Sticky, with the folder name and a live item count. The focused column's header
 carries a 2px accent underline. Costs 26px of vertical space and removes the
 "which folder is this?" question permanently.
 
-### 6. Spines keep folded ancestors on screen
+### 7. Spines keep folded ancestors on screen
 
 A folded column is a 34px strip: the folder name set vertically, plus the icon of
 the child that was chosen there. Six levels deep in a 1000px window you still see
 the whole path. Click one to unfold it.
 
-### 7. Seti icons
+### 8. Seti icons
 
 Files use the **Seti UI** icon font — the one VS Code ships as its "Seti" file icon
 theme. MIT, one 37 KB `.woff`, no per-icon requests, and it comes with an existing
@@ -123,7 +137,7 @@ that inherits the row's colour, so folders read as structure and files read as
 content. A short `SUPP` table in the prototype covers five extensions Seti has
 glyphs for but never bound (`.nix`, `.db`, `.sqlite`, `.lock`, `.desktop`).
 
-### 8. Quieter chrome
+### 9. Quieter chrome
 
 - No hard column separators. Columns are rounded cards floating on the chrome;
   separation comes from tone and a hairline shadow, not from lines.
@@ -132,8 +146,10 @@ glyphs for but never bound (`.nix`, `.db`, `.sqlite`, `.lock`, `.desktop`).
 - Bottom scroll fade when a column overflows, so a cut-off list looks cut off.
 - Keyboard cursor is a focus ring *independent* of selection, so arrowing through
   a column without committing is visible.
-- Real dark theme. All colour derives from `--accent` and a few ink levels via
-  `color-mix()`; theming is a token swap.
+- Real dark theme, defaulting to `prefers-color-scheme`. All colour derives from
+  `--accent` and a few ink levels via `color-mix()`; theming is a token swap.
+- Rows carry `role="option"` / `aria-selected`, columns `role="listbox"`, so the
+  structure is not carried by colour alone. Settings persist to `localStorage`.
 
 ## What it would take to build
 
@@ -146,13 +162,20 @@ glyphs for but never bound (`.nix`, `.db`, `.sqlite`, `.lock`, `.desktop`).
 | Trail overlay | ~50 lines JS, repaints on render / column scroll / dial | `styles.py` JS block |
 | Settings popover | small | `columns.py` (`render_breadcrumb`) + CSS |
 
-Two caveats for the real implementation:
+Four caveats for the real implementation, each of which cost a bug here:
 
 - **Do not transition column width.** Folding tracks the scroll 1:1; a CSS
   transition makes the trail paint against stale geometry. Interpolating width
   directly from `scrollLeft` is fine — that is the opposite of animating it.
-- The trail must repaint on column body scroll as well as on the dial, and skip any
-  segment whose origin has scrolled out of its column body or off the left edge.
+- **Never call `scrollIntoView()`.** It scrolls *every* scrollable ancestor, which
+  here means `#finder` — whose `scrollLeft` is the dial. Revealing a row silently
+  moved the fold. Set the column body's `scrollTop` directly instead.
+- **`#stage` needs `overflow: clip`, not `hidden`.** `hidden` makes it a scroll
+  container that other code can scroll out from under you; `clip` cannot scroll.
+- **Give `#preview` a definite width.** `#strip` is `max-content`, so with a
+  content-derived width an unbroken 80-character title inflated the pane to 750px
+  inside a 430px window. `width: var(--preview-w); flex: 1 0 auto` contributes
+  exactly the target and still grows into space the folded columns give back.
 
 ## Test data
 
@@ -180,6 +203,9 @@ untruncated name.
 | `06-scroll-100.png` | dial at 100% — preview alone |
 | `07-deep-finnish.png` | six levels into `pages/Life/Koivusyrjän pihan hoito/assets` |
 | `08-dark.png` | dark theme |
+| `09-trail-clamped.png` | short window, ancestor columns scrolled — trail clamps and carets instead of breaking |
+| `10-narrow-default.png` | 430px phone: dial opens at 100%, document owns the screen |
+| `11-narrow-unfolded.png` | same phone scrolled to 0% — the columns are still all there |
 
 ## Open question
 

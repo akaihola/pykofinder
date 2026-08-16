@@ -23,3 +23,6 @@ htmlcov/
 
 # third-party reference screenshots, kept locally only
 design/refs/
+
+# agent-harness stub mounted into subdirectories
+design/.mcp.json
