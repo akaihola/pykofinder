@@ -53,7 +53,8 @@ Nothing is ever lost off an edge you can't get back from, and the two extremes a
 both genuinely useful: 0% is "show me the whole tree", 100% is "read this document".
 
 **The default position is the least folding that still gives the preview its full
-width** (45% of the window, clamped to 420–760px) — so the preview is never clipped
+width** (45% of the window, clamped to 420–760px and never wider than the
+window) — so the preview is never clipped
 on arrival, and the deepest columns are always the ones you keep.
 
 Mechanically: `#finder` scrolls, `#rail` supplies the scroll range, and `#stage` is
