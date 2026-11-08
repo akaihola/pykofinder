@@ -1,5 +1,7 @@
 # pykofinder
 
+> This is a prototype developed using AI coding agents and not intended for production use.
+
 A macOS Finder-style column-view file browser and previewer, served as a local
 web application. Navigate directories by clicking column entries; previews render
 inline for Markdown, DOCX, PPTX, PDF, images, plain text, and source code.
